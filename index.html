@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Volleyball Rotations</title>
+<title>Volleyball Coach</title>
 <style>
 :root{
   --bg:#f4f6f9; --card:#ffffff; --ink:#1c2430; --muted:#657084; --line:#dce1e9;
@@ -70,16 +70,86 @@ svg.court{width:100%;height:auto;display:block}
   .grid3{gap:6px}
   .slot{padding:6px}
 }
+/* Coaching hub: tabs, forms, tables */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+.tabs button{min-height:44px;padding:8px 18px;font-weight:600}
+.tabpanel{display:none}
+.tabpanel.on{display:block}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+.f{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);width:100%;min-width:0}
+textarea.f{resize:vertical}
+.fl{display:block;font-size:.75rem;color:var(--muted);margin-bottom:4px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.scroll{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:.92rem}
+table.t th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t td.n,table.t th.n{text-align:center;font-variant-numeric:tabular-nums}
+.dcard{border:1px solid var(--line);border-radius:10px;background:var(--card);margin-bottom:8px;padding:10px 12px}
+.dcard>summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dcard>summary b{flex:1 1 160px}
+.dcard .body{margin-top:10px;font-size:.92rem}
+.dcard .body h4{margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.dcard .body p{margin:0}
+.tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:.75rem;font-weight:600;background:var(--field);border:1px solid var(--line);color:var(--muted)}
+.item{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:center}
+.item .mins{width:76px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+.score{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.score .side{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;background:var(--field)}
+.score .side h3{margin:0;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score .big{font-size:4rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.score button.pt{width:100%;min-height:52px;font-size:1.05rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{min-height:40px;padding:6px 12px}
+.statgrp{margin-top:10px}
+.statgrp h4{margin:0 0 4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.statgrp button{min-height:44px;margin:0 6px 6px 0}
+.statgrp button.us{border-color:#22a05a}
+.statgrp button.them{border-color:#e0524f}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:600}
+button.danger{color:#e0524f}
+.printonly{display:none}
+/* Score screen */
+#scoreboard:fullscreen{background:var(--bg);padding:16px;overflow:auto}
+.sb{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sb .side{border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;background:var(--field)}
+.sb .name{font-size:1.15rem;font-weight:700;text-align:center}
+.sb .pts{font-size:min(24vw,10rem);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;margin:6px 0}
+.sb .add{width:100%;min-height:64px;font-size:1.3rem;font-weight:800;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sb .minus{margin-top:8px}
+.sb .setrow{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.sb .setrow .lab{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.sb .sets{font-size:3rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+@media (max-width:760px){
+  .score .big{font-size:3rem}
+  .sb{gap:8px}
+  .sb .side{padding:10px}
+}
 @media print{
   body{background:#fff;color:#000}
-  .noprint,details.card{display:none!important}
+  .noprint,details.card,.tabs{display:none!important}
   .card{border:none;padding:0}
+  .printonly{display:block}
+  .tabpanel:not(.on){display:none!important}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Volleyball Rotations</h1>
+  <h1>Volleyball Coach</h1>
+  <p class="sub noprint">Rotations, team lists, training plans and stats. Everything you enter stays on your own device.</p>
+  <nav class="tabs noprint" aria-label="Sections">
+    <button type="button" data-tab="rotations" aria-pressed="true">Rotations</button>
+    <button type="button" data-tab="score" aria-pressed="false">Score</button>
+    <button type="button" data-tab="teams" aria-pressed="false">Teams</button>
+    <button type="button" data-tab="training" aria-pressed="false">Training</button>
+    <button type="button" data-tab="stats" aria-pressed="false">Stats</button>
+  </nav>
+
+  <section id="tab-rotations" class="tabpanel on">
   <p class="sub noprint">Enter your starting line-up, then pick a rotation and serve or receive.</p>
 
   <details class="card noprint" id="setup" open>
@@ -129,7 +199,14 @@ svg.court{width:100%;height:auto;display:block}
   </div>
 
   <div class="card" id="output"></div>
+  </section>
+
+  <section id="tab-score" class="tabpanel"></section>
+  <section id="tab-teams" class="tabpanel"></section>
+  <section id="tab-training" class="tabpanel"></section>
+  <section id="tab-stats" class="tabpanel"></section>
 </div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const KEY = 'vb-rotations-v2';
@@ -486,12 +563,576 @@ outEl.addEventListener('pointercancel', endDrag);
 
 document.addEventListener('keydown', e => {
   if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (store.tab !== 'rotations') return;
   if (e.key==='ArrowRight'){ state.rot = state.rot%6+1; save(); render(); }
   if (e.key==='ArrowLeft'){ state.rot = (state.rot+4)%6+1; save(); render(); }
 });
 
 buildSetup();
 render();
+</script>
+
+<script>
+// ===== Coaching hub: Teams, Training and Stats. Everything is saved on this device only. =====
+const STORE_KEY = 'vb-data-v1';
+const newStore = () => ({
+  tab:'rotations',
+  teams:[], activeTeam:null,
+  drills:[],
+  sessions:[], activeSession:null,
+  matches:[], activeMatch:null,
+  score:{l:{name:'', sets:0, pts:0}, r:{name:'', sets:0, pts:0}, target:25, hist:[]},
+  ui:{trainTab:'drills', drillCat:'All', drillQ:'', editDrill:null, statsTab:'match'}
+});
+let store = (() => {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) { const d = newStore(); return Object.assign(d, s, {ui:Object.assign(d.ui, s.ui)}); } } catch(e){}
+  return newStore();
+})();
+const saveStore = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch(e){} };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const $ = id => document.getElementById(id);
+const multi = s => esc(s || '').replace(/\n/g, '<br>');
+let toastTimer;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200); }
+
+function showTab(t){
+  store.tab = t; saveStore();
+  document.querySelectorAll('.tabpanel').forEach(p => p.classList.toggle('on', p.id === 'tab-' + t));
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === t)));
+  if (t === 'score') renderScore();
+  if (t === 'teams') renderTeams();
+  if (t === 'training') renderTraining();
+  if (t === 'stats') renderStats();
+}
+
+// ---------- Score screen ----------
+const sbSnap = () => { const s = store.score; return {lp:s.l.pts, rp:s.r.pts, ls:s.l.sets, rs:s.r.sets}; };
+function sbPush(){ const s = store.score; s.hist.push(sbSnap()); if (s.hist.length > 60) s.hist.shift(); }
+
+function renderScore(){
+  const s = store.score, hi = Math.max(s.l.pts, s.r.pts), lead = Math.abs(s.l.pts - s.r.pts);
+  const over = hi >= s.target && lead >= 2;
+  const side = k => {
+    const x = s[k], other = s[k === 'l' ? 'r' : 'l'];
+    return `<div class="side">
+      <input class="f name" data-sc="name" data-side="${k}" list="teamNames" placeholder="${k === 'l' ? 'Team 1' : 'Team 2'}" value="${esc(x.name)}" aria-label="Team name">
+      <div class="pts" aria-live="polite">${x.pts}</div>
+      <button type="button" class="add" data-a="scPt" data-side="${k}" data-d="1">+1</button>
+      <button type="button" class="minus noprint" data-a="scPt" data-side="${k}" data-d="-1"${x.pts ? '' : ' disabled'} aria-label="Take a point off">−1</button>
+      <div class="setrow"><div class="lab">Sets</div><div class="sets">${x.sets}</div>
+        <div class="row noprint" style="justify-content:center;margin-top:6px">
+          <button type="button" data-a="scSet" data-side="${k}" data-d="-1"${x.sets ? '' : ' disabled'} aria-label="Take a set off">−</button>
+          <button type="button" data-a="scSet" data-side="${k}" data-d="1" aria-label="Add a set">+</button></div></div>
+    </div>`;
+  };
+  const winner = s.l.pts > s.r.pts ? (s.l.name || 'Team 1') : (s.r.name || 'Team 2');
+  $('tab-score').innerHTML = `<div class="card" id="scoreboard">
+    <datalist id="teamNames">${store.teams.map(t => `<option value="${esc(t.name)}">`).join('')}</datalist>
+    <div class="sb">${side('l')}${side('r')}</div>
+    ${over ? `<div class="banner">Set to ${esc(winner)}, ${s.l.pts}–${s.r.pts}. <button type="button" data-a="scFinish" aria-pressed="true">Finish set</button></div>` : ''}
+    <div class="row noprint" style="margin-top:12px">
+      <button type="button" data-a="scUndo"${s.hist.length ? '' : ' disabled'}>Undo</button>
+      <button type="button" data-a="scFinish">Finish set</button>
+      <button type="button" data-a="scSwap">Swap sides</button>
+      <button type="button" data-a="scFull">Full screen</button>
+      <button type="button" class="danger" data-a="scReset">Reset</button>
+      <label class="row" style="margin-left:auto;font-size:.85rem">Set to <input class="f" style="width:72px" type="number" min="5" max="50" data-sc="target" value="${esc(s.target)}" aria-label="Points per set"></label>
+    </div></div>`;
+}
+
+// ---------- Teams ----------
+const TEAM_POS = ['OH','MB','S','OPP','L','DS'];
+const curTeam = () => store.teams.find(t => t.id === store.activeTeam) || store.teams[0] || null;
+const sortedPlayers = t => [...t.players].sort((a,b) => (parseInt(a.num)||999) - (parseInt(b.num)||999) || a.name.localeCompare(b.name));
+const playerLabel = p => (p.num ? '#' + p.num + ' ' : '') + (p.name || 'Player');
+
+function renderTeams(){
+  const t = curTeam();
+  $('tab-teams').innerHTML = `<div class="card">
+    <h2>Team lists</h2>
+    <p class="hint">Keep a roster for each team. Rosters feed the stat taker. Names are saved only on this device.</p>
+    <div class="row noprint">
+      ${store.teams.length ? `<select class="f" id="teamSel" style="max-width:280px">${store.teams.map(x => `<option value="${x.id}"${t && t.id===x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : ''}
+      <button type="button" data-a="teamNew">New team</button>
+      ${t ? `<button type="button" data-a="teamRename">Rename</button><button type="button" data-a="teamCopy">Copy list</button><button type="button" data-a="printPage">Print</button><button type="button" class="danger" data-a="teamDelete">Delete team</button>` : ''}
+    </div>
+    ${t ? rosterHTML(t) : '<p class="hint" style="margin-top:12px">No teams yet. Press New team to start.</p>'}
+  </div>`;
+}
+
+function rosterHTML(t){
+  const posOpts = sel => TEAM_POS.map(k => `<option value="${k}"${sel === k ? ' selected' : ''}>${k}</option>`).join('');
+  const rows = sortedPlayers(t).map(p => `<tr>
+    <td><input class="f" style="width:64px" data-pf="num" data-id="${p.id}" value="${esc(p.num)}" inputmode="numeric" maxlength="3" aria-label="Number"></td>
+    <td><input class="f" style="min-width:140px" data-pf="name" data-id="${p.id}" value="${esc(p.name)}" aria-label="Name"></td>
+    <td><select class="f" style="width:84px" data-pf="pos" data-id="${p.id}" aria-label="Position">${posOpts(p.pos)}</select></td>
+    <td><input class="f" style="min-width:140px" data-pf="notes" data-id="${p.id}" value="${esc(p.notes)}" aria-label="Notes"></td>
+    <td class="noprint"><button type="button" data-a="pDel" data-id="${p.id}" aria-label="Remove player">✕</button></td></tr>`).join('');
+  return `<h3 style="margin:16px 0 6px;font-size:1rem">${esc(t.name)} · ${t.players.length} player${t.players.length === 1 ? '' : 's'}</h3>
+    <div class="scroll"><table class="t"><thead><tr><th>#</th><th>Name</th><th>Pos</th><th>Notes</th><th class="noprint"></th></tr></thead><tbody>${rows}
+    <tr class="noprint"><td><input class="f" style="width:64px" id="addNum" inputmode="numeric" maxlength="3" placeholder="#" aria-label="New number"></td>
+    <td><input class="f" style="min-width:140px" id="addName" placeholder="Add player name" aria-label="New name"></td>
+    <td><select class="f" style="width:84px" id="addPos" aria-label="New position">${posOpts('OH')}</select></td>
+    <td><input class="f" style="min-width:140px" id="addNotes" placeholder="Notes" aria-label="New notes"></td>
+    <td><button type="button" data-a="pAdd" aria-pressed="true">Add</button></td></tr></tbody></table></div>`;
+}
+
+function addPlayer(){
+  const t = curTeam(); const name = $('addName').value.trim();
+  if (!t || !name){ $('addName').focus(); return; }
+  t.players.push({id:uid(), num:$('addNum').value.trim(), name, pos:$('addPos').value, notes:$('addNotes').value.trim()});
+  saveStore(); renderTeams(); $('addNum').focus();
+}
+
+// ---------- Training: drill library ----------
+const DRILL_CATS = ['Warm-up','Passing','Serving','Setting','Attacking','Blocking','Defence','Serve receive','Transition','Team play','Conditioning'];
+const SEED_DRILLS = [
+  {id:'d-dyn', name:'Dynamic movement warm-up', cat:'Warm-up', mins:8, players:'Whole team', level:'All', equip:'None',
+   desc:'Players move in lines across the court: high knees, side shuffles, carioca, backpedal, walking lunges with a twist and arm circles. Finish with three approach steps and a jump at the net.',
+   points:'Build intensity gradually. Soft knees on every landing. Keep eyes up and shoulders relaxed.',
+   prog:'Add ball carries, or finish with partner passing.'},
+  {id:'d-pcatch', name:'Partner pass-set-catch', cat:'Warm-up', mins:6, players:'Pairs', level:'All', equip:'1 ball per pair',
+   desc:'Partners stand about 3 m apart. A tosses, B passes back to A, A sets to B and B catches. Swap roles after 10 balls, then every 5 as the touches get cleaner.',
+   points:'Platform still and angled to the target. Move the feet first, then the arms. Call the ball early.',
+   prog:'Move further apart. Add a step and turn between touches. Play continuous pass-set-pass.'},
+  {id:'d-tri', name:'Triangle passing', cat:'Passing', mins:10, players:'Groups of 3', level:'All', equip:'1 ball per group',
+   desc:'A tosses or serves to B. B passes to C standing at the target. C catches and hands the ball back to A. Rotate A to B to C after 6 balls.',
+   points:'Face the ball and open the platform to the target. Pass with the legs. Aim for a high, soft ball to the target.',
+   prog:'Server hits harder or from further away. Passer takes a step to the side before each pass.'},
+  {id:'d-ptarget', name:'Pass to target scoring', cat:'Passing', mins:12, players:'Groups of 4-6', level:'Intermediate', equip:'Balls, cones, target',
+   desc:'A server serves (or hard-tosses) to a passer in the zone 5 or 6 spot. The passer aims for the target and scores 3 for a ball the setter can set with both hands, 2 for a playable ball, 1 for a scrappy ball and 0 for an error. First to 15 points wins, then rotate.',
+   points:'Judge the pass by what the setter can do with it. Settle early. Talk to each other.',
+   prog:'Serve to different zones, or set a time limit.'},
+  {id:'d-wall', name:'Self-set ladder', cat:'Setting', mins:6, players:'Individual', level:'Beginner', equip:'1 ball each, a wall',
+   desc:'Players set the ball above the forehead to a mark on the wall. 10 good sets, then move back one step. Drop a step if the ball falls.',
+   points:'Hands make a triangle above the forehead. Extend through the legs, then the arms. Contact on the finger pads.',
+   prog:'Set from different angles, or mix in a turn.'},
+  {id:'d-setfoot', name:'Setter footwork to target', cat:'Setting', mins:10, players:'Groups of 3', level:'Intermediate', equip:'1-2 balls',
+   desc:'A passes or tosses to the setter at the target. The setter moves under the ball, faces the target and sets a high ball to the left-front hitter spot. Eight sets, then change roles. Repeat to the right-front spot.',
+   points:'Early arrival with the body square to the target. Quiet head and eyes up. Same release height every time.',
+   prog:'Send in tougher passes, or add a hitter.'},
+  {id:'d-szones', name:'Serving zones game', cat:'Serving', mins:12, players:'Groups of 4-6', level:'All', equip:'Balls, cones',
+   desc:'Mark six zones on the far court. Each server takes 10 serves and calls a zone before serving. Score 3 for an ace, 2 for landing in the called zone, 1 for any serve in and minus 1 for an error. Track each server across the session.',
+   points:'Same ball toss every time. Strong contact through the middle of the ball. Pick a spot and commit.',
+   prog:'Target the weakest passer, or serve under time pressure.'},
+  {id:'d-sladder', name:'Serve progression ladder', cat:'Serving', mins:10, players:'Whole team in lines', level:'Beginner', equip:'Balls',
+   desc:'Players move up one level when they make 5 of 7: underhand serve, overhand serve, float serve, then jump float. Players who miss stay at their level until they get it.',
+   points:'Toss in front of the hitting shoulder. Contact with a firm hand and short follow-through for float.',
+   prog:'Add targets, or serve from the back of the court.'},
+  {id:'d-approach', name:'Approach and arm swing', cat:'Attacking', mins:8, players:'Whole team in lines', level:'All', equip:'Balls (optional)',
+   desc:'Hitters start behind the 3 m line and practise a 3-step or 4-step approach, then jump. Next add the arm swing with no ball, then self-toss and hit over the net.',
+   points:'Last two steps are fast. Arms swing back and up as you jump. Contact in front of the hitting shoulder with a high elbow.',
+   prog:'Add a set from a coach or a setter.'},
+  {id:'d-hitlines', name:'Hitting lines', cat:'Attacking', mins:15, players:'6-10', level:'Intermediate', equip:'Balls, target cones',
+   desc:'Hitters line up at left front and right front. A coach tosses to the setter at the target who sets to each line in turn. Each hitter takes 6 swings, aiming at the target areas. Count kills.',
+   points:'Time the approach to the ball, not the setter. Hit through the ball. Be ready to hit a second ball.',
+   prog:'Add a blocker, or a passer feed instead of the toss.'},
+  {id:'d-blkfoot', name:'Block footwork along the net', cat:'Blocking', mins:8, players:'Pairs or lines', level:'All', equip:'None',
+   desc:'Players start at the middle and move to the outside with a side-shuffle for short distances and a crossover step for longer ones. Jump, press the hands over the net and land softly. Two reps each direction.',
+   points:'Hands up and in front of the shoulders. Close the gap with the neighbouring blocker. Thumbs close to the net.',
+   prog:'Add a hitter to read, then add a call from the middle.'},
+  {id:'d-blkcover', name:'Block and cover', cat:'Blocking', mins:12, players:'6', level:'Intermediate', equip:'Balls',
+   desc:'Three blockers at the net, three covering behind them in a curve. A coach hits from a box. The blockers block, then the cover players dig or pick up any ball that comes off the block. Rotate after 6 balls.',
+   points:'Blockers call what they see. Cover players move early and stay low. Win the ball back and play on.',
+   prog:'Add a live setter, or add a second hitter.'},
+  {id:'d-pepper', name:'Pepper', cat:'Defence', mins:8, players:'Pairs', level:'All', equip:'1 ball per pair',
+   desc:'Partners play a continuous pass, set, hit and dig sequence. A digs, B sets, A catches or passes the ball, then A hits a soft ball to B who digs. Keep the rally going for as many touches as possible.',
+   points:'Stay low and moving. Soft hands on the dig. Set height steady.',
+   prog:'Make the hits harder, or count the rally for a score.'},
+  {id:'d-dig', name:'Defensive positions', cat:'Defence', mins:12, players:'6-8', level:'Intermediate', equip:'Balls, a box',
+   desc:'Defenders take their base positions. A coach on a box hits to the line, the cross court and the middle in a set order. Defenders dig to the target, then reset. Rotate after 6 balls.',
+   points:'Read the hitter and the block. Take up the ready position before contact. Dig to the middle front.',
+   prog:'Mix the order of shots, then add a live setter and hitter.'},
+  {id:'d-side', name:'Serve receive and side-out', cat:'Serve receive', mins:15, players:'6 v 6', level:'Intermediate', equip:'Balls',
+   desc:'The serving team serves every ball. The receiving team can only score by winning the rally on its own side-out. Play 5 side-outs, then rotate.',
+   points:'Call the serve. The setter finds the ball early. Hitters come off the net ready to approach.',
+   prog:'Require a back-row attack option, or add serving targets.'},
+  {id:'d-queen', name:'Queen of the court', cat:'Team play', mins:15, players:'6-12', level:'All', equip:'Balls',
+   desc:'One team holds the queen side. A challenger team serves into the queen side from the other side. If the challenger wins the rally, they swap sides and the old queen team rotates off. First team to score 7 points as queen wins the round.',
+   points:'Keep the energy high. Talk through every ball. Reset quickly between rallies.',
+   prog:'Count only points won on a three-touch rally, or add a mandatory back-row attack.'},
+  {id:'d-rally', name:'Rally game to 15', cat:'Team play', mins:12, players:'6 v 6', level:'All', equip:'Balls',
+   desc:'Play rally-scoring games to 15, win by 2. Each team must use three touches before the ball goes over. Rotate the server order after every game.',
+   points:'Use all three touches. Cover your hitters. Keep a good attitude after errors.',
+   prog:'Give bonus points for a kill off a transition ball.'},
+  {id:'d-sprints', name:'Court sprints', cat:'Conditioning', mins:6, players:'Whole team', level:'All', equip:'None',
+   desc:'Players sprint in waves from baseline to 3 m line and back, to the net and back, then to the far baseline and back. Rest 30 seconds between waves.',
+   points:'Keep it short and fast. Finish each wave under control.',
+   prog:'Add a ball roll or a dig at the end of each sprint.'}
+];
+const allDrills = () => SEED_DRILLS.map(d => Object.assign({seed:true}, d)).concat(store.drills);
+const drillById = id => allDrills().find(d => d.id === id);
+
+function renderTraining(){
+  const tt = store.ui.trainTab;
+  $('tab-training').innerHTML = `<div class="seg noprint" style="margin-bottom:12px">${[['drills','Drill library'],['sessions','Session plans']].map(([k,l]) =>
+    `<button type="button" data-a="trainTab" data-v="${k}" aria-pressed="${tt === k}">${l}</button>`).join('')}</div><div id="trainBody"></div>`;
+  tt === 'drills' ? renderDrills() : renderSessions();
+}
+
+function drillFormHTML(){
+  const id = store.ui.editDrill; if (!id) return '';
+  const d = id === 'new' ? {name:'', cat:'Passing', mins:10, players:'', equip:'', desc:'', points:'', prog:''} : drillById(id);
+  return `<div class="card noprint"><h2>${id === 'new' ? 'New drill' : 'Edit drill'}</h2>
+    <div class="fgrid">
+      <div><label class="fl" for="dName">Name</label><input class="f" id="dName" value="${esc(d.name)}"></div>
+      <div><label class="fl" for="dCat">Category</label><select class="f" id="dCat">${DRILL_CATS.map(c => `<option${c === d.cat ? ' selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label class="fl" for="dMins">Minutes</label><input class="f" id="dMins" type="number" min="1" max="120" value="${esc(d.mins)}"></div>
+      <div><label class="fl" for="dPlayers">Players</label><input class="f" id="dPlayers" value="${esc(d.players)}" placeholder="e.g. pairs, 6 v 6"></div>
+      <div><label class="fl" for="dEquip">Equipment</label><input class="f" id="dEquip" value="${esc(d.equip)}"></div>
+    </div>
+    <label class="fl" for="dDesc" style="margin-top:10px">How it works</label><textarea class="f" id="dDesc" rows="4">${esc(d.desc)}</textarea>
+    <label class="fl" for="dPoints" style="margin-top:10px">Coaching points</label><textarea class="f" id="dPoints" rows="3">${esc(d.points)}</textarea>
+    <label class="fl" for="dProg" style="margin-top:10px">Progressions</label><textarea class="f" id="dProg" rows="2">${esc(d.prog)}</textarea>
+    <div class="actions"><button type="button" data-a="drillSave" aria-pressed="true">Save drill</button><button type="button" data-a="drillCancel">Cancel</button></div></div>`;
+}
+
+function renderDrills(){
+  const u = store.ui;
+  $('trainBody').innerHTML = `<div class="card">
+    <div class="row noprint">
+      <input class="f" id="drillQ" type="search" placeholder="Search drills" value="${esc(u.drillQ)}" style="max-width:260px" aria-label="Search drills">
+      <select class="f" id="drillCat" style="max-width:200px" aria-label="Category">${['All', ...DRILL_CATS].map(c => `<option${c === u.drillCat ? ' selected' : ''}>${c}</option>`).join('')}</select>
+      <button type="button" data-a="drillNew">Add your own drill</button>
+    </div>
+    <p class="note" id="drillCount" style="margin:10px 0 0"></p>
+  </div>${drillFormHTML()}<div id="drillList"></div>`;
+  fillDrillList();
+}
+
+function fillDrillList(){
+  const u = store.ui, q = u.drillQ.trim().toLowerCase();
+  const list = allDrills().filter(d => (u.drillCat === 'All' || d.cat === u.drillCat) &&
+    (!q || [d.name, d.cat, d.desc, d.equip, d.points].join(' ').toLowerCase().includes(q)));
+  $('drillCount').textContent = `${list.length} drill${list.length === 1 ? '' : 's'}`;
+  $('drillList').innerHTML = list.map(d => `<details class="dcard"><summary><b>${esc(d.name)}</b>
+      <span class="tag">${esc(d.cat)}</span><span class="note">${esc(d.mins)} min · ${esc(d.players || 'any')}</span></summary>
+    <div class="body">
+      ${d.equip ? `<h4>Equipment</h4><p>${esc(d.equip)}</p>` : ''}
+      <h4>How it works</h4><p>${multi(d.desc)}</p>
+      ${d.points ? `<h4>Coaching points</h4><p>${multi(d.points)}</p>` : ''}
+      ${d.prog ? `<h4>Progressions</h4><p>${multi(d.prog)}</p>` : ''}
+      <div class="actions noprint"><button type="button" data-a="drillAdd" data-id="${d.id}" aria-pressed="true">Add to session</button>
+        ${d.seed ? `<button type="button" data-a="drillCopy" data-id="${d.id}">Make my own copy</button>`
+                 : `<button type="button" data-a="drillEdit" data-id="${d.id}">Edit</button><button type="button" class="danger" data-a="drillDel" data-id="${d.id}">Delete</button>`}</div>
+    </div></details>`).join('') || '<p class="hint">No drills match.</p>';
+}
+
+function saveDrill(){
+  const name = $('dName').value.trim(); if (!name){ $('dName').focus(); return; }
+  const id = store.ui.editDrill === 'new' ? 'c-' + uid() : store.ui.editDrill;
+  const d = {id, name, cat:$('dCat').value, mins:+$('dMins').value || 10, players:$('dPlayers').value.trim(), equip:$('dEquip').value.trim(),
+    desc:$('dDesc').value.trim(), points:$('dPoints').value.trim(), prog:$('dProg').value.trim()};
+  const i = store.drills.findIndex(x => x.id === id);
+  if (i >= 0) store.drills[i] = d; else store.drills.push(d);
+  store.ui.editDrill = null; saveStore(); renderDrills(); toast('Drill saved');
+}
+
+// ---------- Training: session plans ----------
+const curSession = () => store.sessions.find(s => s.id === store.activeSession) || null;
+function newSession(){
+  const s = {id:uid(), title:'Training session', date:today(), teamId:'', notes:'', items:[]};
+  store.sessions.unshift(s); store.activeSession = s.id; return s;
+}
+const itemName = it => { const d = it.drillId && drillById(it.drillId); return d ? d.name : it.title; };
+const sessionTotal = s => s.items.reduce((n, it) => n + (+it.mins || 0), 0);
+
+function addDrillToSession(drillId){
+  const d = drillById(drillId); if (!d) return;
+  const s = curSession() || newSession();
+  s.items.push({id:uid(), drillId, title:d.name, mins:d.mins, note:''});
+  saveStore(); toast(`Added to "${s.title}"`);
+}
+
+function renderSessions(){
+  const s = curSession();
+  $('trainBody').innerHTML = `<div class="card noprint">
+    <div class="row">
+      ${store.sessions.length ? `<select class="f" id="sessSel" style="max-width:320px" aria-label="Session">${store.sessions.map(x => `<option value="${x.id}"${s && s.id === x.id ? ' selected' : ''}>${esc(x.date)} · ${esc(x.title)}</option>`).join('')}</select>` : ''}
+      <button type="button" data-a="sessNew">New session</button>
+      ${s ? `<button type="button" data-a="printPage">Print plan</button><button type="button" class="danger" data-a="sessDel">Delete</button>` : ''}
+    </div>
+    ${!s ? '<p class="hint" style="margin:12px 0 0">Make a session, then add drills from the library or your own blocks.</p>' : ''}
+  </div>${s ? sessionEditorHTML(s) + sessionPrintHTML(s) : ''}`;
+}
+
+function sessionEditorHTML(s){
+  const teamOpts = `<option value="">No team</option>` + store.teams.map(t => `<option value="${t.id}"${s.teamId === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
+  const items = s.items.map((it, i) => `<div class="item">
+      <div><b>${esc(itemName(it))}</b>${it.drillId ? '' : ' <span class="tag">custom</span>'}
+        <input class="f" data-sf="note" data-id="${it.id}" value="${esc(it.note)}" placeholder="Notes for this block" aria-label="Notes" style="margin-top:6px"></div>
+      <div class="row" style="flex-wrap:nowrap">
+        <input class="f mins" type="number" min="1" max="180" data-sf="mins" data-id="${it.id}" value="${esc(it.mins)}" aria-label="Minutes">
+        <button type="button" data-a="itemUp" data-id="${it.id}" aria-label="Move up"${i === 0 ? ' disabled' : ''}>↑</button>
+        <button type="button" data-a="itemDown" data-id="${it.id}" aria-label="Move down"${i === s.items.length - 1 ? ' disabled' : ''}>↓</button>
+        <button type="button" data-a="itemDel" data-id="${it.id}" aria-label="Remove">✕</button></div></div>`).join('');
+  return `<div class="card noprint">
+    <div class="fgrid">
+      <div><label class="fl" for="sTitle">Title</label><input class="f" id="sTitle" data-sf="title" value="${esc(s.title)}"></div>
+      <div><label class="fl" for="sDate">Date</label><input class="f" id="sDate" type="date" data-sf="date" value="${esc(s.date)}"></div>
+      <div><label class="fl" for="sTeam">Team</label><select class="f" id="sTeam" data-sf="teamId">${teamOpts}</select></div>
+    </div>
+    <label class="fl" for="sNotes" style="margin-top:10px">Session goals and notes</label>
+    <textarea class="f" id="sNotes" rows="2" data-sf="notes">${esc(s.notes)}</textarea>
+    <h2 style="margin-top:16px">Plan · <span id="sessTotal">${sessionTotal(s)}</span> min</h2>
+    ${items || '<p class="hint">No blocks yet.</p>'}
+    <div class="row" style="margin-top:12px">
+      <select class="f" id="sessAddSel" style="max-width:300px" aria-label="Add a drill">${DRILL_CATS.map(c => `<optgroup label="${c}">${allDrills().filter(d => d.cat === c).map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.mins)} min)</option>`).join('')}</optgroup>`).join('')}</select>
+      <button type="button" data-a="sessAddDrill">Add drill</button>
+      <button type="button" data-a="sessAddBlock">Add custom block</button>
+    </div></div>`;
+}
+
+function sessionPrintHTML(s){
+  const team = store.teams.find(t => t.id === s.teamId);
+  let clock = 0;
+  const rows = s.items.map(it => {
+    const d = it.drillId && drillById(it.drillId); const start = clock; clock += +it.mins || 0;
+    return `<tr><td class="n">${start}–${clock}</td><td><b>${esc(itemName(it))}</b>${d ? `<br><span class="note">${esc(d.desc)}</span>` : ''}${it.note ? `<br><i>${esc(it.note)}</i>` : ''}</td><td class="n">${esc(it.mins)}</td></tr>`;
+  }).join('');
+  return `<div class="printonly"><h2>${esc(s.title)}</h2><p>${esc(s.date)}${team ? ' · ' + esc(team.name) : ''} · ${sessionTotal(s)} minutes</p>
+    ${s.notes ? `<p>${multi(s.notes)}</p>` : ''}
+    <table class="t"><thead><tr><th>Time</th><th>Activity</th><th class="n">Min</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ---------- Stats: scoring and stat taker ----------
+const STATS = [
+  {k:'ace',    l:'Ace',           g:'Serve',   pt:'us'},
+  {k:'srvin',  l:'Serve in',      g:'Serve'},
+  {k:'srverr', l:'Serve error',   g:'Serve',   pt:'them'},
+  {k:'kill',   l:'Kill',          g:'Attack',  pt:'us'},
+  {k:'atk',    l:'Attack in play',g:'Attack'},
+  {k:'atkerr', l:'Attack error',  g:'Attack',  pt:'them'},
+  {k:'blksolo',l:'Solo block',    g:'Block',   pt:'us'},
+  {k:'blkast', l:'Block assist',  g:'Block',   pt:'us'},
+  {k:'blkerr', l:'Block error',   g:'Block',   pt:'them'},
+  {k:'rec3',   l:'Pass 3',        g:'Receive'},
+  {k:'rec2',   l:'Pass 2',        g:'Receive'},
+  {k:'rec1',   l:'Pass 1',        g:'Receive'},
+  {k:'rec0',   l:'Pass 0',        g:'Receive', pt:'them'},
+  {k:'dig',    l:'Dig',           g:'Defence'},
+  {k:'ast',    l:'Assist',        g:'Set'},
+  {k:'seterr', l:'Set error',     g:'Set',     pt:'them'}
+];
+const STAT = Object.fromEntries(STATS.map(s => [s.k, s]));
+const curMatch = () => store.matches.find(m => m.id === store.activeMatch) || null;
+
+function scores(m){
+  const sc = Array.from({length: m.set + 1}, () => ({us:0, them:0}));
+  for (const e of m.log) if (e.pt && sc[e.set]) sc[e.set][e.pt]++;
+  return sc;
+}
+const setTarget = (m, i) => (m.bestOf > 1 && i === m.bestOf - 1) ? m.finalTarget : m.setTarget;
+const setOver = (m, i, s) => Math.max(s.us, s.them) >= setTarget(m, i) && Math.abs(s.us - s.them) >= 2;
+function matchSummary(m){
+  const sc = scores(m); let us = 0, them = 0;
+  sc.forEach((s, i) => { if (i < m.set || (i === m.set && m.finished)) { if (s.us > s.them) us++; else if (s.them > s.us) them++; } });
+  return {sc, us, them};
+}
+function playerTotals(m){
+  const keys = STATS.map(s => s.k), P = {};
+  m.players.forEach(p => { P[p.id] = Object.fromEntries(keys.map(k => [k, 0])); });
+  for (const e of m.log) if (e.stat && P[e.stat.p]) P[e.stat.p][e.stat.k]++;
+  return P;
+}
+const pct = (a, b, d = 0) => b ? (a / b * 100).toFixed(d) + '%' : '–';
+
+function renderStats(){
+  const st = store.ui.statsTab;
+  $('tab-stats').innerHTML = `<div class="seg noprint" style="margin-bottom:12px">${[['match','Match'],['history','History']].map(([k,l]) =>
+    `<button type="button" data-a="statsTab" data-v="${k}" aria-pressed="${st === k}">${l}</button>`).join('')}</div><div id="statsBody"></div>`;
+  st === 'history' ? renderHistory() : (curMatch() ? renderMatch() : renderMatchSetup());
+}
+
+function renderMatchSetup(){
+  const teamOpts = `<option value="">No team (score only)</option>` + store.teams.map(t => `<option value="${t.id}"${t.id === store.activeTeam ? ' selected' : ''}>${esc(t.name)} (${t.players.length} players)</option>`).join('');
+  $('statsBody').innerHTML = `<div class="card">
+    <h2>New match</h2>
+    <p class="hint">Pick a team to take player stats. Without a team you can still keep score.</p>
+    <div class="fgrid">
+      <div><label class="fl" for="mTeam">Team</label><select class="f" id="mTeam">${teamOpts}</select></div>
+      <div><label class="fl" for="mOpp">Opponent</label><input class="f" id="mOpp" placeholder="Opponent"></div>
+      <div><label class="fl" for="mDate">Date</label><input class="f" id="mDate" type="date" value="${today()}"></div>
+      <div><label class="fl" for="mBest">Match</label><select class="f" id="mBest"><option value="1">Single set</option><option value="3" selected>Best of 3</option><option value="5">Best of 5</option></select></div>
+      <div><label class="fl" for="mTarget">Points per set</label><input class="f" id="mTarget" type="number" min="5" max="50" value="25"></div>
+      <div><label class="fl" for="mFinal">Deciding set to</label><input class="f" id="mFinal" type="number" min="5" max="50" value="15"></div>
+    </div>
+    <label class="row" style="margin-top:12px;font-size:.9rem"><input type="checkbox" id="mAuto" checked> Stats that win or lose a point (ace, kill, errors) update the score</label>
+    <div class="actions"><button type="button" data-a="matchStart" aria-pressed="true">Start match</button></div></div>`;
+}
+
+function startMatch(){
+  const team = store.teams.find(t => t.id === $('mTeam').value);
+  const m = {id:uid(), teamId:team ? team.id : '', teamName:team ? team.name : 'Us', opp:$('mOpp').value.trim() || 'Opponent', date:$('mDate').value || today(),
+    bestOf:+$('mBest').value, setTarget:+$('mTarget').value || 25, finalTarget:+$('mFinal').value || 15, auto:$('mAuto').checked,
+    players:team ? sortedPlayers(team).map(p => ({id:p.id, num:p.num, name:p.name})) : [], set:0, log:[], sel:null, finished:false};
+  store.matches.unshift(m); store.activeMatch = m.id; saveStore(); renderMatch();
+}
+
+function renderMatch(){
+  const m = curMatch(); if (!m) return renderMatchSetup();
+  const {sc, us, them} = matchSummary(m), cur = sc[m.set], need = Math.ceil(m.bestOf / 2);
+  const over = setOver(m, m.set, cur), decided = us >= need || them >= need;
+  const last = m.log[m.log.length - 1];
+  const lastText = !last ? 'Nothing logged yet.' : last.stat
+    ? `Last: ${esc(playerLabel(m.players.find(p => p.id === last.stat.p) || {}))} · ${esc(STAT[last.stat.k].l)}` : `Last: point to ${last.pt === 'us' ? esc(m.teamName) : esc(m.opp)}`;
+  let banner = '';
+  if (m.finished) banner = `<div class="banner">Match finished${us !== them ? ` · ${us > them ? esc(m.teamName) : esc(m.opp)} won ${Math.max(us, them)}–${Math.min(us, them)}` : ''}</div>`;
+  else if (over) banner = `<div class="banner">Set ${m.set + 1} to ${cur.us > cur.them ? esc(m.teamName) : esc(m.opp)}, ${cur.us}–${cur.them}.
+      ${decided ? '<button type="button" data-a="matchFinish" aria-pressed="true">Finish match</button>' : '<button type="button" data-a="matchNextSet" aria-pressed="true">Start next set</button>'}</div>`;
+  const setChips = sc.map((s, i) => i < m.set || (i === m.set && m.finished) ? `<span class="tag">Set ${i + 1}: ${s.us}–${s.them}</span>` : '').join(' ');
+  const statsTable = m.players.length ? statsTableHTML(m) : '';
+  const picker = m.players.length && !m.finished ? `<div class="card noprint"><h2>Stat taker</h2>
+    <p class="hint">Pick a player, then tap what they did.</p>
+    <div class="chips">${m.players.map(p => `<button type="button" data-a="pick" data-id="${p.id}" aria-pressed="${m.sel === p.id}">${esc(playerLabel(p))}</button>`).join('')}</div>
+    ${['Serve','Attack','Block','Receive','Defence','Set'].map(g => `<div class="statgrp"><h4>${g}</h4>${STATS.filter(s => s.g === g).map(s =>
+      `<button type="button" class="${s.pt && m.auto ? (s.pt === 'us' ? 'us' : 'them') : ''}" data-a="stat" data-k="${s.k}">${s.l}</button>`).join('')}</div>`).join('')}
+    ${m.auto ? '<p class="note" style="margin-top:6px">Green = point for us, red = point for the opponent.</p>' : ''}</div>` : '';
+  $('statsBody').innerHTML = `<div class="card">
+    <div class="row" style="justify-content:space-between"><h2>${esc(m.teamName)} vs ${esc(m.opp)} · ${esc(m.date)}</h2>
+      <span class="note">Sets ${us}–${them} · Set ${m.set + 1} of ${m.bestOf} (to ${setTarget(m, m.set)})</span></div>
+    <div class="score">
+      <div class="side"><h3>${esc(m.teamName)}</h3><div class="big">${cur.us}</div><button type="button" class="pt noprint" data-a="pt" data-side="us">+1 point</button></div>
+      <div class="side"><h3>${esc(m.opp)}</h3><div class="big">${cur.them}</div><button type="button" class="pt noprint" data-a="pt" data-side="them">+1 point</button></div>
+    </div>
+    ${banner}
+    <div class="row noprint"><button type="button" data-a="undo"${m.log.length ? '' : ' disabled'}>Undo</button><span class="note">${lastText}</span></div>
+    ${setChips ? `<div style="margin-top:10px">${setChips}</div>` : ''}
+    <div class="actions noprint"><button type="button" data-a="matchNew">New match</button><button type="button" data-a="printPage">Print</button><button type="button" data-a="csv" data-id="${m.id}">Download CSV</button></div>
+  </div>${picker}${statsTable}`;
+}
+
+function statsTableHTML(m){
+  const T = playerTotals(m);
+  const rows = m.players.map(p => {
+    const t = T[p.id], atk = t.kill + t.atkerr + t.atk, rec = t.rec3 + t.rec2 + t.rec1 + t.rec0, srv = t.ace + t.srvin + t.srverr;
+    return `<tr><td>${esc(playerLabel(p))}</td>
+      <td class="n">${t.ace}</td><td class="n">${t.srverr}</td><td class="n">${srv}</td>
+      <td class="n">${t.kill}</td><td class="n">${t.atkerr}</td><td class="n">${atk}</td><td class="n">${atk ? ((t.kill - t.atkerr) / atk).toFixed(3) : '–'}</td>
+      <td class="n">${t.blksolo}</td><td class="n">${t.blkast}</td><td class="n">${t.blkerr}</td>
+      <td class="n">${t.dig}</td><td class="n">${rec}</td><td class="n">${rec ? ((3 * t.rec3 + 2 * t.rec2 + t.rec1) / rec).toFixed(2) : '–'}</td><td class="n">${t.ast}</td></tr>`;
+  }).join('');
+  return `<div class="card"><h2>Player stats</h2><div class="scroll"><table class="t"><thead><tr><th>Player</th>
+    <th class="n">Ace</th><th class="n">S err</th><th class="n">Srv</th><th class="n">Kill</th><th class="n">A err</th><th class="n">Att</th><th class="n">Hit %</th>
+    <th class="n">Solo</th><th class="n">B ast</th><th class="n">B err</th><th class="n">Dig</th><th class="n">Rec</th><th class="n">Pass avg</th><th class="n">Ast</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note" style="margin:8px 0 0">Hit % = (kills − errors) ÷ attempts. Pass average uses 0–3 ratings.</p></div>`;
+}
+
+function renderHistory(){
+  const rows = store.matches.map(m => {
+    const {us, them} = matchSummary(m);
+    return `<tr><td>${esc(m.date)}</td><td>${esc(m.teamName)} vs ${esc(m.opp)}</td><td class="n">${us}–${them}${m.finished ? '' : ' (live)'}</td>
+      <td class="noprint"><button type="button" data-a="matchOpen" data-id="${m.id}">Open</button>
+      <button type="button" data-a="csv" data-id="${m.id}">CSV</button><button type="button" class="danger" data-a="matchDel" data-id="${m.id}">Delete</button></td></tr>`;
+  }).join('');
+  $('statsBody').innerHTML = `<div class="card"><h2>Match history</h2>${rows
+    ? `<div class="scroll"><table class="t"><thead><tr><th>Date</th><th>Match</th><th class="n">Sets</th><th class="noprint"></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : '<p class="hint">No matches yet.</p>'}</div>`;
+}
+
+function downloadCSV(m){
+  const T = playerTotals(m), q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const head = ['Number','Name','Aces','Serve errors','Serves','Kills','Attack errors','Attempts','Hit %','Solo blocks','Block assists','Block errors','Digs','Receptions','Pass avg','Assists'];
+  const lines = [head.map(q).join(',')];
+  m.players.forEach(p => { const t = T[p.id], atk = t.kill + t.atkerr + t.atk, rec = t.rec3 + t.rec2 + t.rec1 + t.rec0;
+    lines.push([p.num, p.name, t.ace, t.srverr, t.ace + t.srvin + t.srverr, t.kill, t.atkerr, atk, atk ? ((t.kill - t.atkerr) / atk).toFixed(3) : '', t.blksolo, t.blkast, t.blkerr, t.dig, rec,
+      rec ? ((3 * t.rec3 + 2 * t.rec2 + t.rec1) / rec).toFixed(2) : '', t.ast].map(q).join(',')); });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
+  a.download = `${m.date}-${m.teamName}-vs-${m.opp}.csv`.replace(/[^\w.\-]+/g, '_');
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---------- Events ----------
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); });
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a, id = b.dataset.id;
+  const t = curTeam(), s = curSession(), m = curMatch();
+  switch (a){
+    case 'printPage': window.print(); break;
+    // score screen
+    case 'scPt': { const x = store.score[b.dataset.side]; if (+b.dataset.d < 0 && !x.pts) break; sbPush(); x.pts += +b.dataset.d; saveStore(); renderScore(); break; }
+    case 'scSet': { const x = store.score[b.dataset.side]; if (+b.dataset.d < 0 && !x.sets) break; sbPush(); x.sets += +b.dataset.d; saveStore(); renderScore(); break; }
+    case 'scFinish': { const sc = store.score; if (sc.l.pts === sc.r.pts){ toast('Scores are level'); break; }
+      sbPush(); sc[sc.l.pts > sc.r.pts ? 'l' : 'r'].sets++; sc.l.pts = 0; sc.r.pts = 0; saveStore(); renderScore(); break; }
+    case 'scUndo': { const sc = store.score, h = sc.hist.pop(); if (h){ sc.l.pts = h.lp; sc.r.pts = h.rp; sc.l.sets = h.ls; sc.r.sets = h.rs; saveStore(); renderScore(); } break; }
+    case 'scSwap': { const sc = store.score; [sc.l, sc.r] = [sc.r, sc.l]; sc.hist = []; saveStore(); renderScore(); break; }
+    case 'scReset': if (confirm('Reset points and sets to zero?')){ const sc = store.score; sc.l.pts = sc.r.pts = sc.l.sets = sc.r.sets = 0; sc.hist = []; saveStore(); renderScore(); } break;
+    case 'scFull': { const el = $('scoreboard'); try { (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen()).catch(() => toast('Full screen is not available here')); } catch(err){ toast('Full screen is not available here'); } break; }
+    // teams
+    case 'teamNew': { const n = (prompt('Team name (for example U16 Girls)') || '').trim(); if (n){ const x = {id:uid(), name:n, players:[]}; store.teams.push(x); store.activeTeam = x.id; saveStore(); renderTeams(); } break; }
+    case 'teamRename': { const n = (prompt('Team name', t.name) || '').trim(); if (n){ t.name = n; saveStore(); renderTeams(); } break; }
+    case 'teamDelete': if (confirm(`Delete ${t.name} and its player list? Saved matches keep their own copy.`)){ store.teams = store.teams.filter(x => x.id !== t.id); store.activeTeam = null; saveStore(); renderTeams(); } break;
+    case 'teamCopy': { const txt = sortedPlayers(t).map(p => `${p.num ? '#' + p.num + ' ' : ''}${p.name} (${p.pos})`).join('\n');
+      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Team list copied'), () => toast('Copy not available here')); break; }
+    case 'pAdd': addPlayer(); break;
+    case 'pDel': t.players = t.players.filter(p => p.id !== id); saveStore(); renderTeams(); break;
+    // training
+    case 'trainTab': store.ui.trainTab = b.dataset.v; saveStore(); renderTraining(); break;
+    case 'drillNew': store.ui.editDrill = 'new'; renderDrills(); break;
+    case 'drillEdit': store.ui.editDrill = id; renderDrills(); break;
+    case 'drillCancel': store.ui.editDrill = null; renderDrills(); break;
+    case 'drillSave': saveDrill(); break;
+    case 'drillDel': if (confirm('Delete this drill?')){ store.drills = store.drills.filter(d => d.id !== id); saveStore(); fillDrillList(); } break;
+    case 'drillCopy': { const d = drillById(id); store.drills.push(Object.assign({}, d, {id:'c-' + uid(), seed:undefined, name:d.name + ' (mine)'})); saveStore(); fillDrillList(); toast('Copied to your drills'); break; }
+    case 'drillAdd': addDrillToSession(id); break;
+    case 'sessNew': newSession(); saveStore(); renderSessions(); break;
+    case 'sessDel': if (confirm(`Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; saveStore(); renderSessions(); } break;
+    case 'sessAddDrill': addDrillToSession($('sessAddSel').value); renderSessions(); break;
+    case 'sessAddBlock': { const n = (prompt('Name of the block (for example Team talk)') || '').trim(); if (n){ s.items.push({id:uid(), drillId:null, title:n, mins:5, note:''}); saveStore(); renderSessions(); } break; }
+    case 'itemDel': s.items = s.items.filter(x => x.id !== id); saveStore(); renderSessions(); break;
+    case 'itemUp': case 'itemDown': { const i = s.items.findIndex(x => x.id === id), j = a === 'itemUp' ? i - 1 : i + 1;
+      if (j >= 0 && j < s.items.length){ [s.items[i], s.items[j]] = [s.items[j], s.items[i]]; saveStore(); renderSessions(); } break; }
+    // stats
+    case 'statsTab': store.ui.statsTab = b.dataset.v; saveStore(); renderStats(); break;
+    case 'matchStart': startMatch(); break;
+    case 'matchNew': store.activeMatch = null; saveStore(); renderStats(); break;
+    case 'matchOpen': store.activeMatch = id; store.ui.statsTab = 'match'; saveStore(); renderStats(); break;
+    case 'matchDel': if (confirm('Delete this match and its stats?')){ store.matches = store.matches.filter(x => x.id !== id); if (store.activeMatch === id) store.activeMatch = null; saveStore(); renderHistory(); } break;
+    case 'matchNextSet': m.set++; saveStore(); renderMatch(); break;
+    case 'matchFinish': m.finished = true; saveStore(); renderMatch(); break;
+    case 'pt': m.log.push({set:m.set, pt:b.dataset.side}); saveStore(); renderMatch(); break;
+    case 'pick': m.sel = id; saveStore(); renderMatch(); break;
+    case 'stat': if (!m.sel){ toast('Pick a player first'); break; }
+      m.log.push({set:m.set, stat:{p:m.sel, k:b.dataset.k}, pt:m.auto ? (STAT[b.dataset.k].pt || null) : null}); saveStore(); renderMatch(); break;
+    case 'undo': m.log.pop(); saveStore(); renderMatch(); break;
+    case 'csv': downloadCSV(store.matches.find(x => x.id === id)); break;
+  }
+});
+
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.sc){
+    if (el.dataset.sc === 'name') store.score[el.dataset.side].name = el.value;
+    else store.score.target = Math.max(1, +el.value || 25);
+    saveStore();
+  }
+  else if (el.dataset.pf){ const p = curTeam().players.find(x => x.id === el.dataset.id); if (p){ p[el.dataset.pf] = el.value; saveStore(); } }
+  else if (el.id === 'drillQ'){ store.ui.drillQ = el.value; saveStore(); fillDrillList(); }
+  else if (el.dataset.sf){
+    const s = curSession(); if (!s) return;
+    if (el.dataset.id){ const it = s.items.find(x => x.id === el.dataset.id); if (it){ it[el.dataset.sf] = el.dataset.sf === 'mins' ? (+el.value || 0) : el.value; $('sessTotal').textContent = sessionTotal(s); } }
+    else s[el.dataset.sf] = el.value;
+    saveStore();
+  }
+});
+
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'teamSel'){ store.activeTeam = el.value; saveStore(); renderTeams(); }
+  else if (el.id === 'drillCat'){ store.ui.drillCat = el.value; saveStore(); fillDrillList(); }
+  else if (el.id === 'sessSel'){ store.activeSession = el.value; saveStore(); renderSessions(); }
+  else if (el.dataset.sf === 'teamId' || el.dataset.sf === 'title' || el.dataset.sf === 'date'){ renderSessions(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && ['addNum','addName','addNotes'].includes(e.target.id)){ e.preventDefault(); addPlayer(); }
+});
+
+showTab(store.tab);
 </script>
 </body>
 </html>
