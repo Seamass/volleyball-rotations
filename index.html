@@ -107,8 +107,9 @@ table.t td.n,table.t th.n{text-align:center;font-variant-numeric:tabular-nums}
 .statgrp{margin-top:10px}
 .statgrp h4{margin:0 0 4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .statgrp button{min-height:44px;margin:0 6px 6px 0}
-.statgrp button.us{border-color:#22a05a}
-.statgrp button.them{border-color:#e0524f}
+.statgrp button[aria-pressed=true],.chips button[aria-pressed=true]{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+button.submit{min-height:52px;font-size:1.05rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
 .banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:600}
 button.danger{color:#e0524f}
 .printonly{display:none}
@@ -479,7 +480,7 @@ document.getElementById('setup').addEventListener('input', e => {
   save(); render();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm(`Reset the line-up to the example? Your names ${LOCKED ? '' : 'and any moved players '}will be cleared.`)) return;
+  if (!sure($('resetBtn'), `Reset the line-up? Your names ${LOCKED ? '' : 'and any moved players '}will be cleared.`)) return;
   const keep = {rot:state.rot, mode:state.mode, view:state.view};
   state = Object.assign(EXAMPLE(), keep);
   if (LOCKED) state.custom = LOCKED;
@@ -519,7 +520,7 @@ document.addEventListener('click', e => {
             () => note.textContent = 'Select all of the text below, copy it and paste it to Claude to lock these positions in.');
   }
   if (b.dataset.act==='resetAll'){
-    if (!confirm(`Put every moved player back to the default spot, in all rotations of the ${state.system}?`)) return;
+    if (!sure(b, `Put every moved player back in all rotations of the ${state.system}?`)) return;
     state.custom[state.system] = {}; save(); render();
   }
   if (b.id==='printBtn') window.print();
@@ -596,6 +597,22 @@ const multi = s => esc(s || '').replace(/\n/g, '<br>');
 let toastTimer;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200); }
 
+// Browser dialogs (confirm/prompt) are blocked in some embedded viewers, so destructive buttons ask for a second tap instead.
+let armedKey = null, armedTimer;
+function sure(b, msg){
+  const key = b.dataset.a + (b.dataset.id || '') + b.id;
+  if (armedKey === key){ armedKey = null; clearTimeout(armedTimer); return true; }
+  armedKey = key; clearTimeout(armedTimer); armedTimer = setTimeout(() => { armedKey = null; }, 4000);
+  toast(`${msg} Tap again to confirm.`);
+  return false;
+}
+
+function addTeam(){
+  const n = $('newTeamName').value.trim();
+  if (!n){ toast('Type a team name'); $('newTeamName').focus(); return; }
+  const x = {id:uid(), name:n, players:[]}; store.teams.push(x); store.activeTeam = x.id; saveStore(); renderTeams(); toast(`Added ${n}`); $('addName').focus();
+}
+
 function showTab(t){
   store.tab = t; saveStore();
   document.querySelectorAll('.tabpanel').forEach(p => p.classList.toggle('on', p.id === 'tab-' + t));
@@ -612,7 +629,15 @@ function sbPush(){ const s = store.score; s.hist.push(sbSnap()); if (s.hist.leng
 
 function renderScore(){
   const s = store.score, hi = Math.max(s.l.pts, s.r.pts), lead = Math.abs(s.l.pts - s.r.pts);
-  const over = hi >= s.target && lead >= 2;
+  // Best of 3 ends at 2 sets, best of 5 at 3. The deciding set only happens when it is level going into it.
+  const bo = s.bestOf || 3, fin = s.finalTarget || 15, need = Math.ceil(bo / 2);
+  const deciding = bo > 1 && s.l.sets === need - 1 && s.r.sets === need - 1;
+  const target = deciding ? fin : s.target;
+  const over = hi >= target && lead >= 2;
+  const leader = s.l.pts > s.r.pts ? s.l : s.r;
+  const clinch = over && leader.sets + 1 >= need;
+  const nm = x => x.name || (x === s.l ? 'Team 1' : 'Team 2');
+  const matchWinner = s.l.sets >= need || s.r.sets >= need ? (s.l.sets > s.r.sets ? s.l : s.r) : null;
   const side = k => {
     const x = s[k], other = s[k === 'l' ? 'r' : 'l'];
     return `<div class="side">
@@ -626,18 +651,26 @@ function renderScore(){
           <button type="button" data-a="scSet" data-side="${k}" data-d="1" aria-label="Add a set">+</button></div></div>
     </div>`;
   };
-  const winner = s.l.pts > s.r.pts ? (s.l.name || 'Team 1') : (s.r.name || 'Team 2');
+  const banner = matchWinner
+    ? `<div class="banner">${esc(nm(matchWinner))} win the match ${s.l.sets}–${s.r.sets}.</div>`
+    : over ? `<div class="banner">Set to ${esc(nm(leader))}, ${s.l.pts}–${s.r.pts}.${clinch ? ` That wins the match ${leader.sets + 1}–${(leader === s.l ? s.r : s.l).sets}.` : ''}
+        <button type="button" data-a="scFinish" aria-pressed="true">Finish set</button></div>`
+    : deciding ? `<div class="banner">Deciding set, to ${fin}.</div>` : '';
   $('tab-score').innerHTML = `<div class="card" id="scoreboard">
     <datalist id="teamNames">${store.teams.map(t => `<option value="${esc(t.name)}">`).join('')}</datalist>
     <div class="sb">${side('l')}${side('r')}</div>
-    ${over ? `<div class="banner">Set to ${esc(winner)}, ${s.l.pts}–${s.r.pts}. <button type="button" data-a="scFinish" aria-pressed="true">Finish set</button></div>` : ''}
+    ${banner}
     <div class="row noprint" style="margin-top:12px">
       <button type="button" data-a="scUndo"${s.hist.length ? '' : ' disabled'}>Undo</button>
       <button type="button" data-a="scFinish">Finish set</button>
       <button type="button" data-a="scSwap">Swap sides</button>
       <button type="button" data-a="scFull">Full screen</button>
       <button type="button" class="danger" data-a="scReset">Reset</button>
-      <label class="row" style="margin-left:auto;font-size:.85rem">Set to <input class="f" style="width:72px" type="number" min="5" max="50" data-sc="target" value="${esc(s.target)}" aria-label="Points per set"></label>
+    </div>
+    <div class="row noprint" style="margin-top:12px;font-size:.85rem">
+      <label class="row">Match <select class="f" style="width:auto" data-sc="bestOf" aria-label="Match length">${[[1,'Single set'],[3,'Best of 3'],[5,'Best of 5']].map(([v, l]) => `<option value="${v}"${v === bo ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="row">Sets to <input class="f" style="width:72px" type="number" min="5" max="50" data-sc="target" value="${esc(s.target)}" aria-label="Points per set"></label>
+      <label class="row">Deciding set to <input class="f" style="width:72px" type="number" min="5" max="50" data-sc="final" value="${esc(fin)}" aria-label="Points in the deciding set"></label>
     </div></div>`;
 }
 
@@ -654,9 +687,13 @@ function renderTeams(){
     <p class="hint">Keep a roster for each team. Rosters feed the stat taker. Names are saved only on this device.</p>
     <div class="row noprint">
       ${store.teams.length ? `<select class="f" id="teamSel" style="max-width:280px">${store.teams.map(x => `<option value="${x.id}"${t && t.id===x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : ''}
-      <button type="button" data-a="teamNew">New team</button>
-      ${t ? `<button type="button" data-a="teamRename">Rename</button><button type="button" data-a="teamCopy">Copy list</button><button type="button" data-a="printPage">Print</button><button type="button" class="danger" data-a="teamDelete">Delete team</button>` : ''}
+      <input class="f" id="newTeamName" placeholder="New team name" style="max-width:220px" aria-label="New team name">
+      <button type="button" data-a="teamNew" aria-pressed="true">Add team</button>
     </div>
+    ${t ? `<div class="row noprint" style="margin-top:10px">${store.ui.renaming
+      ? `<input class="f" id="renameTeam" value="${esc(t.name)}" style="max-width:220px" aria-label="Team name"><button type="button" data-a="teamRenameSave" aria-pressed="true">Save name</button><button type="button" data-a="teamRenameCancel">Cancel</button>`
+      : `<button type="button" data-a="teamRename">Rename</button>`}
+      <button type="button" data-a="teamCopy">Copy list</button><button type="button" data-a="printPage">Print</button><button type="button" class="danger" data-a="teamDelete">Delete team</button></div>` : ''}
     ${t ? rosterHTML(t) : '<p class="hint" style="margin-top:12px">No teams yet. Press New team to start.</p>'}
   </div>`;
 }
@@ -881,6 +918,7 @@ function sessionEditorHTML(s){
     <div class="row" style="margin-top:12px">
       <select class="f" id="sessAddSel" style="max-width:300px" aria-label="Add a drill">${DRILL_CATS.map(c => `<optgroup label="${c}">${allDrills().filter(d => d.cat === c).map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.mins)} min)</option>`).join('')}</optgroup>`).join('')}</select>
       <button type="button" data-a="sessAddDrill">Add drill</button>
+      <input class="f" id="blockName" placeholder="Custom block, e.g. Team talk" style="max-width:240px" aria-label="Custom block name">
       <button type="button" data-a="sessAddBlock">Add custom block</button>
     </div></div>`;
 }
@@ -959,7 +997,7 @@ function renderMatchSetup(){
       <div><label class="fl" for="mTarget">Points per set</label><input class="f" id="mTarget" type="number" min="5" max="50" value="25"></div>
       <div><label class="fl" for="mFinal">Deciding set to</label><input class="f" id="mFinal" type="number" min="5" max="50" value="15"></div>
     </div>
-    <label class="row" style="margin-top:12px;font-size:.9rem"><input type="checkbox" id="mAuto" checked> Stats that win or lose a point (ace, kill, errors) update the score</label>
+    <label class="row" style="margin-top:12px;font-size:.9rem"><input type="checkbox" id="mAuto" checked> Pre-select the point for stats that win or lose one (ace, kill, errors). You can still change it before you submit</label>
     <div class="actions"><button type="button" data-a="matchStart" aria-pressed="true">Start match</button></div></div>`;
 }
 
@@ -974,22 +1012,30 @@ function startMatch(){
 function renderMatch(){
   const m = curMatch(); if (!m) return renderMatchSetup();
   const {sc, us, them} = matchSummary(m), cur = sc[m.set], need = Math.ceil(m.bestOf / 2);
-  const over = setOver(m, m.set, cur), decided = us >= need || them >= need;
+  // The set that just ended counts toward the match before "next set" is pressed, so a 2-0 in a best of 3 ends the match.
+  const over = setOver(m, m.set, cur);
+  const pu = us + (over && !m.finished && cur.us > cur.them ? 1 : 0), pth = them + (over && !m.finished && cur.them > cur.us ? 1 : 0);
+  const decided = pu >= need || pth >= need;
   const last = m.log[m.log.length - 1];
   const lastText = !last ? 'Nothing logged yet.' : last.stat
     ? `Last: ${esc(playerLabel(m.players.find(p => p.id === last.stat.p) || {}))} · ${esc(STAT[last.stat.k].l)}` : `Last: point to ${last.pt === 'us' ? esc(m.teamName) : esc(m.opp)}`;
   let banner = '';
   if (m.finished) banner = `<div class="banner">Match finished${us !== them ? ` · ${us > them ? esc(m.teamName) : esc(m.opp)} won ${Math.max(us, them)}–${Math.min(us, them)}` : ''}</div>`;
   else if (over) banner = `<div class="banner">Set ${m.set + 1} to ${cur.us > cur.them ? esc(m.teamName) : esc(m.opp)}, ${cur.us}–${cur.them}.
+      ${decided ? `${pu > pth ? esc(m.teamName) : esc(m.opp)} win the match ${Math.max(pu, pth)}–${Math.min(pu, pth)}. ` : ''}
       ${decided ? '<button type="button" data-a="matchFinish" aria-pressed="true">Finish match</button>' : '<button type="button" data-a="matchNextSet" aria-pressed="true">Start next set</button>'}</div>`;
   const setChips = sc.map((s, i) => i < m.set || (i === m.set && m.finished) ? `<span class="tag">Set ${i + 1}: ${s.us}–${s.them}</span>` : '').join(' ');
   const statsTable = m.players.length ? statsTableHTML(m) : '';
   const picker = m.players.length && !m.finished ? `<div class="card noprint"><h2>Stat taker</h2>
-    <p class="hint">Pick a player, then tap what they did.</p>
+    <p class="hint">1. Pick a player. 2. Pick what they did. 3. Choose who gets the point, if anyone. 4. Press Submit.</p>
     <div class="chips">${m.players.map(p => `<button type="button" data-a="pick" data-id="${p.id}" aria-pressed="${m.sel === p.id}">${esc(playerLabel(p))}</button>`).join('')}</div>
     ${['Serve','Attack','Block','Receive','Defence','Set'].map(g => `<div class="statgrp"><h4>${g}</h4>${STATS.filter(s => s.g === g).map(s =>
-      `<button type="button" class="${s.pt && m.auto ? (s.pt === 'us' ? 'us' : 'them') : ''}" data-a="stat" data-k="${s.k}">${s.l}</button>`).join('')}</div>`).join('')}
-    ${m.auto ? '<p class="note" style="margin-top:6px">Green = point for us, red = point for the opponent.</p>' : ''}</div>` : '';
+      `<button type="button" data-a="statSel" data-k="${s.k}" aria-pressed="${!!m.pend && m.pend.k === s.k}">${s.l}</button>`).join('')}</div>`).join('')}
+    ${m.pend ? `<div class="statgrp"><h4>Point for</h4>${[['us', m.teamName], ['them', m.opp], ['none', 'No point']].map(([v, l]) =>
+      `<button type="button" data-a="ptSel" data-v="${v}" aria-pressed="${m.pend.pt === v}">${esc(l)}</button>`).join('')}</div>` : ''}
+    <div class="actions"><button type="button" class="submit" data-a="submitStat"${m.sel && m.pend ? '' : ' disabled'}>${m.sel && m.pend
+      ? `Submit: ${esc(playerLabel(m.players.find(p => p.id === m.sel) || {}))} · ${esc(STAT[m.pend.k].l)}` : 'Submit'}</button>
+      <button type="button" data-a="clearStat"${m.pend ? '' : ' disabled'}>Clear</button></div></div>` : '';
   $('statsBody').innerHTML = `<div class="card">
     <div class="row" style="justify-content:space-between"><h2>${esc(m.teamName)} vs ${esc(m.opp)} · ${esc(m.date)}</h2>
       <span class="note">Sets ${us}–${them} · Set ${m.set + 1} of ${m.bestOf} (to ${setTarget(m, m.set)})</span></div>
@@ -1000,7 +1046,7 @@ function renderMatch(){
     ${banner}
     <div class="row noprint"><button type="button" data-a="undo"${m.log.length ? '' : ' disabled'}>Undo</button><span class="note">${lastText}</span></div>
     ${setChips ? `<div style="margin-top:10px">${setChips}</div>` : ''}
-    <div class="actions noprint"><button type="button" data-a="matchNew">New match</button><button type="button" data-a="printPage">Print</button><button type="button" data-a="csv" data-id="${m.id}">Download CSV</button></div>
+    <div class="actions noprint">${m.finished ? '' : '<button type="button" data-a="matchEnd">Finish match</button>'}<button type="button" data-a="matchNew">New match</button><button type="button" data-a="printPage">Print</button><button type="button" data-a="csv" data-id="${m.id}">Download CSV</button></div>
   </div>${picker}${statsTable}`;
 }
 
@@ -1061,12 +1107,14 @@ document.addEventListener('click', e => {
       sbPush(); sc[sc.l.pts > sc.r.pts ? 'l' : 'r'].sets++; sc.l.pts = 0; sc.r.pts = 0; saveStore(); renderScore(); break; }
     case 'scUndo': { const sc = store.score, h = sc.hist.pop(); if (h){ sc.l.pts = h.lp; sc.r.pts = h.rp; sc.l.sets = h.ls; sc.r.sets = h.rs; saveStore(); renderScore(); } break; }
     case 'scSwap': { const sc = store.score; [sc.l, sc.r] = [sc.r, sc.l]; sc.hist = []; saveStore(); renderScore(); break; }
-    case 'scReset': if (confirm('Reset points and sets to zero?')){ const sc = store.score; sc.l.pts = sc.r.pts = sc.l.sets = sc.r.sets = 0; sc.hist = []; saveStore(); renderScore(); } break;
+    case 'scReset': if (sure(b, 'Reset points and sets to zero?')){ const sc = store.score; sc.l.pts = sc.r.pts = sc.l.sets = sc.r.sets = 0; sc.hist = []; saveStore(); renderScore(); } break;
     case 'scFull': { const el = $('scoreboard'); try { (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen()).catch(() => toast('Full screen is not available here')); } catch(err){ toast('Full screen is not available here'); } break; }
     // teams
-    case 'teamNew': { const n = (prompt('Team name (for example U16 Girls)') || '').trim(); if (n){ const x = {id:uid(), name:n, players:[]}; store.teams.push(x); store.activeTeam = x.id; saveStore(); renderTeams(); } break; }
-    case 'teamRename': { const n = (prompt('Team name', t.name) || '').trim(); if (n){ t.name = n; saveStore(); renderTeams(); } break; }
-    case 'teamDelete': if (confirm(`Delete ${t.name} and its player list? Saved matches keep their own copy.`)){ store.teams = store.teams.filter(x => x.id !== t.id); store.activeTeam = null; saveStore(); renderTeams(); } break;
+    case 'teamNew': addTeam(); break;
+    case 'teamRename': store.ui.renaming = true; renderTeams(); $('renameTeam').focus(); break;
+    case 'teamRenameCancel': store.ui.renaming = false; renderTeams(); break;
+    case 'teamRenameSave': { const n = $('renameTeam').value.trim(); if (!n){ toast('Type a team name'); break; } t.name = n; store.ui.renaming = false; saveStore(); renderTeams(); break; }
+    case 'teamDelete': if (sure(b, `Delete ${t.name} and its player list?`)){ store.teams = store.teams.filter(x => x.id !== t.id); store.activeTeam = null; saveStore(); renderTeams(); } break;
     case 'teamCopy': { const txt = sortedPlayers(t).map(p => `${p.num ? '#' + p.num + ' ' : ''}${p.name} (${p.pos})`).join('\n');
       (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Team list copied'), () => toast('Copy not available here')); break; }
     case 'pAdd': addPlayer(); break;
@@ -1077,13 +1125,13 @@ document.addEventListener('click', e => {
     case 'drillEdit': store.ui.editDrill = id; renderDrills(); break;
     case 'drillCancel': store.ui.editDrill = null; renderDrills(); break;
     case 'drillSave': saveDrill(); break;
-    case 'drillDel': if (confirm('Delete this drill?')){ store.drills = store.drills.filter(d => d.id !== id); saveStore(); fillDrillList(); } break;
+    case 'drillDel': if (sure(b, 'Delete this drill?')){ store.drills = store.drills.filter(d => d.id !== id); saveStore(); fillDrillList(); } break;
     case 'drillCopy': { const d = drillById(id); store.drills.push(Object.assign({}, d, {id:'c-' + uid(), seed:undefined, name:d.name + ' (mine)'})); saveStore(); fillDrillList(); toast('Copied to your drills'); break; }
     case 'drillAdd': addDrillToSession(id); break;
     case 'sessNew': newSession(); saveStore(); renderSessions(); break;
-    case 'sessDel': if (confirm(`Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; saveStore(); renderSessions(); } break;
+    case 'sessDel': if (sure(b, `Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; saveStore(); renderSessions(); } break;
     case 'sessAddDrill': addDrillToSession($('sessAddSel').value); renderSessions(); break;
-    case 'sessAddBlock': { const n = (prompt('Name of the block (for example Team talk)') || '').trim(); if (n){ s.items.push({id:uid(), drillId:null, title:n, mins:5, note:''}); saveStore(); renderSessions(); } break; }
+    case 'sessAddBlock': { const n = $('blockName').value.trim(); if (!n){ toast('Type a name for the block'); $('blockName').focus(); break; } s.items.push({id:uid(), drillId:null, title:n, mins:5, note:''}); saveStore(); renderSessions(); break; }
     case 'itemDel': s.items = s.items.filter(x => x.id !== id); saveStore(); renderSessions(); break;
     case 'itemUp': case 'itemDown': { const i = s.items.findIndex(x => x.id === id), j = a === 'itemUp' ? i - 1 : i + 1;
       if (j >= 0 && j < s.items.length){ [s.items[i], s.items[j]] = [s.items[j], s.items[i]]; saveStore(); renderSessions(); } break; }
@@ -1092,13 +1140,21 @@ document.addEventListener('click', e => {
     case 'matchStart': startMatch(); break;
     case 'matchNew': store.activeMatch = null; saveStore(); renderStats(); break;
     case 'matchOpen': store.activeMatch = id; store.ui.statsTab = 'match'; saveStore(); renderStats(); break;
-    case 'matchDel': if (confirm('Delete this match and its stats?')){ store.matches = store.matches.filter(x => x.id !== id); if (store.activeMatch === id) store.activeMatch = null; saveStore(); renderHistory(); } break;
+    case 'matchDel': if (sure(b, 'Delete this match and its stats?')){ store.matches = store.matches.filter(x => x.id !== id); if (store.activeMatch === id) store.activeMatch = null; saveStore(); renderHistory(); } break;
     case 'matchNextSet': m.set++; saveStore(); renderMatch(); break;
     case 'matchFinish': m.finished = true; saveStore(); renderMatch(); break;
+    case 'matchEnd': if (sure(b, 'Finish the match now? Sets in progress count by their score.')){ m.finished = true; saveStore(); renderMatch(); } break;
     case 'pt': m.log.push({set:m.set, pt:b.dataset.side}); saveStore(); renderMatch(); break;
     case 'pick': m.sel = id; saveStore(); renderMatch(); break;
-    case 'stat': if (!m.sel){ toast('Pick a player first'); break; }
-      m.log.push({set:m.set, stat:{p:m.sel, k:b.dataset.k}, pt:m.auto ? (STAT[b.dataset.k].pt || null) : null}); saveStore(); renderMatch(); break;
+    case 'statSel': { const k = b.dataset.k; m.pend = m.pend && m.pend.k === k ? null : {k, pt:m.auto ? (STAT[k].pt || 'none') : 'none'}; saveStore(); renderMatch(); break; }
+    case 'ptSel': m.pend.pt = b.dataset.v; saveStore(); renderMatch(); break;
+    case 'clearStat': m.pend = null; saveStore(); renderMatch(); break;
+    case 'submitStat': {
+      if (!m.sel){ toast('Pick a player first'); break; }
+      if (!m.pend){ toast('Pick a stat first'); break; }
+      m.log.push({set:m.set, stat:{p:m.sel, k:m.pend.k}, pt:m.pend.pt === 'none' ? null : m.pend.pt});
+      const done = `${playerLabel(m.players.find(p => p.id === m.sel) || {})} · ${STAT[m.pend.k].l}`;
+      m.pend = null; saveStore(); renderMatch(); toast(`Logged ${done}`); break; }
     case 'undo': m.log.pop(); saveStore(); renderMatch(); break;
     case 'csv': downloadCSV(store.matches.find(x => x.id === id)); break;
   }
@@ -1107,8 +1163,11 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const el = e.target;
   if (el.dataset.sc){
-    if (el.dataset.sc === 'name') store.score[el.dataset.side].name = el.value;
-    else store.score.target = Math.max(1, +el.value || 25);
+    const sc = store.score, k = el.dataset.sc;
+    if (k === 'name') sc[el.dataset.side].name = el.value;
+    else if (k === 'bestOf') sc.bestOf = +el.value;
+    else if (k === 'final') sc.finalTarget = Math.max(1, +el.value || 15);
+    else sc.target = Math.max(1, +el.value || 25);
     saveStore();
   }
   else if (el.dataset.pf){ const p = curTeam().players.find(x => x.id === el.dataset.id); if (p){ p[el.dataset.pf] = el.value; saveStore(); } }
@@ -1123,14 +1182,20 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.id === 'teamSel'){ store.activeTeam = el.value; saveStore(); renderTeams(); }
+  if (el.dataset.sc && el.dataset.sc !== 'name'){ renderScore(); }
+  else if (el.id === 'teamSel'){ store.activeTeam = el.value; saveStore(); renderTeams(); }
   else if (el.id === 'drillCat'){ store.ui.drillCat = el.value; saveStore(); fillDrillList(); }
   else if (el.id === 'sessSel'){ store.activeSession = el.value; saveStore(); renderSessions(); }
   else if (el.dataset.sf === 'teamId' || el.dataset.sf === 'title' || el.dataset.sf === 'date'){ renderSessions(); }
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && ['addNum','addName','addNotes'].includes(e.target.id)){ e.preventDefault(); addPlayer(); }
+  if (e.key !== 'Enter') return;
+  const id = e.target.id;
+  if (['addNum','addName','addNotes'].includes(id)){ e.preventDefault(); addPlayer(); }
+  else if (id === 'newTeamName'){ e.preventDefault(); addTeam(); }
+  else if (id === 'renameTeam'){ e.preventDefault(); document.querySelector('[data-a=teamRenameSave]').click(); }
+  else if (id === 'blockName'){ e.preventDefault(); document.querySelector('[data-a=sessAddBlock]').click(); }
 });
 
 showTab(store.tab);
