@@ -680,9 +680,10 @@ function rosterHTML(t){
 
 function addPlayer(){
   const t = curTeam(); const name = $('addName').value.trim();
-  if (!t || !name){ $('addName').focus(); return; }
+  if (!t || !name){ toast('Type a name for the player'); $('addName').focus(); return; }
   t.players.push({id:uid(), num:$('addNum').value.trim(), name, pos:$('addPos').value, notes:$('addNotes').value.trim()});
-  saveStore(); renderTeams(); $('addNum').focus();
+  saveStore(); renderTeams(); toast(`Added ${name}`);
+  $('addName').focus();
 }
 
 // ---------- Training: drill library ----------
