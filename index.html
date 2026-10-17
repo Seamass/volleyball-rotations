@@ -975,7 +975,9 @@ function playerTotals(m){
   for (const e of m.log) if (e.stat && P[e.stat.p]) P[e.stat.p][e.stat.k]++;
   return P;
 }
-const pct = (a, b, d = 0) => b ? (a / b * 100).toFixed(d) + '%' : '–';
+// Percentages show as 100% or 33.3%, not 1.000 or .333. Returns '' when there is nothing to divide by.
+const pct = (a, b) => b ? (Math.round(a / b * 1000) / 10).toString() + '%' : '';
+const hitPct = (t, atk) => pct(t.kill - t.atkerr, atk);
 
 function renderStats(){
   const st = store.ui.statsTab;
@@ -1056,7 +1058,7 @@ function statsTableHTML(m){
     const t = T[p.id], atk = t.kill + t.atkerr + t.atk, rec = t.rec3 + t.rec2 + t.rec1 + t.rec0, srv = t.ace + t.srvin + t.srverr;
     return `<tr><td>${esc(playerLabel(p))}</td>
       <td class="n">${t.ace}</td><td class="n">${t.srverr}</td><td class="n">${srv}</td>
-      <td class="n">${t.kill}</td><td class="n">${t.atkerr}</td><td class="n">${atk}</td><td class="n">${atk ? ((t.kill - t.atkerr) / atk).toFixed(3) : '–'}</td>
+      <td class="n">${t.kill}</td><td class="n">${t.atkerr}</td><td class="n">${atk}</td><td class="n">${hitPct(t, atk) || '–'}</td>
       <td class="n">${t.blksolo}</td><td class="n">${t.blkast}</td><td class="n">${t.blkerr}</td>
       <td class="n">${t.dig}</td><td class="n">${rec}</td><td class="n">${rec ? ((3 * t.rec3 + 2 * t.rec2 + t.rec1) / rec).toFixed(2) : '–'}</td><td class="n">${t.ast}</td></tr>`;
   }).join('');
@@ -1083,7 +1085,7 @@ function downloadCSV(m){
   const head = ['Number','Name','Aces','Serve errors','Serves','Kills','Attack errors','Attempts','Hit %','Solo blocks','Block assists','Block errors','Digs','Receptions','Pass avg','Assists'];
   const lines = [head.map(q).join(',')];
   m.players.forEach(p => { const t = T[p.id], atk = t.kill + t.atkerr + t.atk, rec = t.rec3 + t.rec2 + t.rec1 + t.rec0;
-    lines.push([p.num, p.name, t.ace, t.srverr, t.ace + t.srvin + t.srverr, t.kill, t.atkerr, atk, atk ? ((t.kill - t.atkerr) / atk).toFixed(3) : '', t.blksolo, t.blkast, t.blkerr, t.dig, rec,
+    lines.push([p.num, p.name, t.ace, t.srverr, t.ace + t.srvin + t.srverr, t.kill, t.atkerr, atk, hitPct(t, atk), t.blksolo, t.blkast, t.blkerr, t.dig, rec,
       rec ? ((3 * t.rec3 + 2 * t.rec2 + t.rec1) / rec).toFixed(2) : '', t.ast].map(q).join(',')); });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
