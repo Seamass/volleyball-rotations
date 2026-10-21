@@ -97,6 +97,15 @@ table.t td.n,table.t th.n{text-align:center;font-variant-numeric:tabular-nums}
 .dcard .body{margin-top:10px;font-size:.92rem}
 .dcard .body h4{margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .dcard .body p{margin:0}
+.tcard{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;background:var(--field);padding:12px;margin-bottom:8px}
+.vitem{border:1px solid var(--line);border-radius:10px;background:var(--field);margin-bottom:8px;padding:12px}
+.vitem>summary{cursor:pointer;display:flex;gap:10px;align-items:center;font-size:1.02rem;list-style:none}
+.vitem>summary::-webkit-details-marker{display:none}
+.vitem .vt{min-width:3.6em;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.85rem}
+.vitem .vn{flex:1;font-weight:600}
+.vitem .body{margin-top:10px;font-size:.95rem}
+.vitem .body h4{margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.vitem .body p{margin:0}
 .phasehd{margin:18px 0 8px;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
 .star{min-height:0;border:none;background:none;padding:0 6px 0 0;font-size:1.3rem;line-height:1;color:#e0a000}
 .star:hover{border:none;color:#f2b01e}
@@ -609,7 +618,7 @@ const newStore = () => ({
   matches:[], activeMatch:null,
   score:{l:{name:'', sets:0, pts:0}, r:{name:'', sets:0, pts:0}, target:25, hist:[]},
   fav:[],
-  ui:{trainTab:'drills', drillCat:'All', drillPhase:'All', drillLevel:'Any', drillMax:'Any', drillSort:'order', favOnly:false, drillQ:'', editDrill:null, statsTab:'match'}
+  ui:{trainTab:'drills', drillCat:'All', drillPhase:'All', drillLevel:'Any', drillMax:'Any', drillSort:'order', favOnly:false, drillQ:'', editDrill:null, statsTab:'match', sessMode:'list'}
 });
 let store = (() => {
   try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) { const d = newStore(); return Object.assign(d, s, {ui:Object.assign(d.ui, s.ui)}); } } catch(e){}
@@ -1056,7 +1065,7 @@ function addDrillToSession(drillId){
 function sessionEquipment(s){
   const seen = new Set(), out = [];
   for (const it of s.items){
-    const d = it.drillId && drillById(it.drillId);
+    const d = drillFor(it);
     if (d && d.equip && !/^none/i.test(d.equip) && !seen.has(d.equip)){ seen.add(d.equip); out.push([d.name, d.equip]); }
   }
   return out;
@@ -1075,16 +1084,141 @@ function sessionSummaryHTML(s){
 }
 function fillSessionSummary(s){ const el = $('sessSummary'); if (el) el.innerHTML = sessionSummaryHTML(s); }
 
+// A drill for a session block: custom drills from a shared link travel inside the block, library drills are looked up by id.
+const drillFor = it => it.inline || (it.drillId ? drillById(it.drillId) : null);
+let shared = null;   // a training opened from a share link, not saved yet
+
+// ---- Sharing: the whole training is packed into the link, so it opens on any phone without an account.
+const b64 = {
+  enc: obj => { const bytes = new TextEncoder().encode(JSON.stringify(obj)); let bin = ''; bytes.forEach(x => { bin += String.fromCharCode(x); });
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  dec: str => { const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/')); const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); return JSON.parse(new TextDecoder().decode(bytes)); }
+};
+
+function encodeSession(s){
+  const team = store.teams.find(t => t.id === s.teamId);
+  const items = s.items.map(it => {
+    const d = drillFor(it), row = [d && d.seed ? d.id : null, itemName(it), +it.mins || 0, itemPhase(it), it.note || ''];
+    if (d && !d.seed) row.push({n:d.name, c:d.cat, m:d.mins, p:d.players, e:d.equip, x:d.desc, k:d.points, g:d.prog, l:d.level, h:d.phase});
+    return row;
+  });
+  return b64.enc({v:1, t:s.title, d:s.date, n:s.notes, g:+s.target || 0, tm:team ? team.name : '', i:items});
+}
+
+function decodeSession(str){
+  const o = b64.dec(str);
+  if (!o || o.v !== 1 || !Array.isArray(o.i)) throw new Error('bad link');
+  return {title:o.t || 'Training', date:o.d || '', notes:o.n || '', target:o.g || 0, teamName:o.tm || '',
+    items:o.i.map(r => ({id:uid(), drillId:r[0], title:r[1], mins:r[2], phase:r[3], note:r[4],
+      inline:r[5] ? {id:'', name:r[5].n, cat:r[5].c, mins:r[5].m, players:r[5].p, equip:r[5].e, desc:r[5].x, points:r[5].k, prog:r[5].g, level:r[5].l, phase:r[5].h} : null}))};
+}
+
+const shareUrl = s => location.href.split('#')[0] + '#t=' + encodeSession(s);
+
+function sessionText(s){
+  const team = store.teams.find(t => t.id === s.teamId); let clock = 0;
+  const lines = [s.title, `${s.date}${team ? ' · ' + team.name : ''} · ${sessionTotal(s)} min`];
+  if (s.notes) lines.push('', s.notes);
+  lines.push('');
+  s.items.forEach(it => { const st = clock; clock += +it.mins || 0; lines.push(`${st}-${clock} min: ${itemName(it)}${it.note ? ` (${it.note})` : ''}`); });
+  return lines.join('\n');
+}
+
+function showLink(url){
+  const out = $('shareOut'); if (!out) return;
+  out.innerHTML = `<p class="note" style="margin:10px 0 4px">Copy this link and send it:</p><input class="f" readonly value="${esc(url)}" id="shareBox" aria-label="Training link">`;
+  $('shareBox').select();
+}
+
+async function shareSession(s){
+  const url = shareUrl(s);
+  try {
+    if (navigator.share){ await navigator.share({title:s.title, text:`${s.title} (${s.date})`, url}); return; }
+  } catch (err){ if (err && err.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); toast('Link copied. Send it to anyone.'); showLink(url); }
+  catch (err){ showLink(url); }
+}
+
+async function copyText(txt, okMsg){
+  try { await navigator.clipboard.writeText(txt); toast(okMsg); }
+  catch (err){ toast('Copy is not available here'); }
+}
+
+function saveShared(){
+  const x = shared; if (!x) return;
+  const items = x.items.map(it => {
+    let drillId = it.drillId;
+    if (it.inline){ drillId = 'c-' + uid(); store.drills.push(Object.assign({}, it.inline, {id:drillId})); }
+    return {id:uid(), drillId, title:it.title, mins:it.mins, phase:it.phase, note:it.note};
+  });
+  const s = {id:uid(), title:x.title, date:x.date || today(), teamId:'', notes:x.notes, target:x.target || 90, items};
+  store.sessions.unshift(s); store.activeSession = s.id; store.ui.sessMode = 'view';
+  shared = null; try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) {}
+  saveStore(); renderSessions(); toast('Saved to your trainings');
+}
+
+function closeShared(){
+  shared = null; store.ui.sessMode = 'list'; try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) {}
+  saveStore(); renderSessions();
+}
+
+function loadShared(){
+  const h = location.hash;
+  if (!h.startsWith('#t=')) return;
+  try { shared = decodeSession(h.slice(3)); store.tab = 'training'; store.ui.trainTab = 'sessions'; }
+  catch (err){ shared = null; toast('That training link could not be read'); }
+}
+
+// ---- Views
+function sessionListHTML(){
+  const list = [...store.sessions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const cards = list.map(s => { const team = store.teams.find(t => t.id === s.teamId);
+    return `<div class="tcard"><div><b>${esc(s.title)}</b><div class="note">${esc(s.date)}${team ? ' · ' + esc(team.name) : ''} · ${sessionTotal(s)} min · ${s.items.length} block${s.items.length === 1 ? '' : 's'}</div></div>
+      <div class="row" style="flex-wrap:nowrap"><button type="button" data-a="sessOpen" data-id="${s.id}" aria-pressed="true">View</button><button type="button" data-a="sessEdit" data-id="${s.id}">Edit</button></div></div>`; }).join('');
+  return `<div class="card noprint"><div class="row"><h2 style="margin:0;flex:1">Saved trainings</h2><button type="button" data-a="sessNew" aria-pressed="true">New training</button></div>
+    <p class="hint" style="margin:6px 0 12px">Trainings save automatically on this device. Open one and press Share to send it to a phone or your coaches.</p>
+    ${cards || '<p class="hint">No trainings yet. Press New training, or press Add to session on any drill.</p>'}</div>`;
+}
+
+function trainingViewHTML(s, isShared){
+  const team = isShared ? s.teamName : (store.teams.find(t => t.id === s.teamId) || {}).name;
+  let clock = 0;
+  const blocks = s.items.map(it => {
+    const d = drillFor(it), start = clock; clock += +it.mins || 0;
+    return `<details class="vitem"><summary><span class="vt">${start}–${clock}</span><span class="vn">${esc(itemName(it))}</span><span class="tag">${esc(it.mins)} min</span></summary>
+      <div class="body">${it.note ? `<p><b>Note:</b> ${esc(it.note)}</p>` : ''}
+      ${d ? `${d.equip ? `<h4>Equipment</h4><p>${esc(d.equip)}</p>` : ''}${d.players ? `<h4>Players</h4><p>${esc(d.players)}</p>` : ''}
+        <h4>How it works</h4><p>${multi(d.desc)}</p>
+        ${d.points ? `<h4>Coaching points</h4><p>${multi(d.points)}</p>` : ''}${d.prog ? `<h4>Progressions</h4><p>${multi(d.prog)}</p>` : ''}`
+        : '<p class="note">Custom block.</p>'}</div></details>`;
+  }).join('');
+  const equip = sessionEquipment(s);
+  const head = isShared
+    ? `<div class="banner noprint">A shared training. Save it to keep a copy on this device.
+        <div class="row" style="margin-top:8px"><button type="button" data-a="sharedSave" aria-pressed="true">Save to my trainings</button><button type="button" data-a="sharedClose">Close</button></div></div>`
+    : `<div class="row noprint" style="margin-bottom:10px"><button type="button" data-a="sessList">← All trainings</button><button type="button" data-a="sessEdit" data-id="${s.id}">Edit</button></div>`;
+  return `<div class="card${isShared ? '' : ' noprint'}">${head}
+    <h2 style="font-size:1.4rem;margin:0 0 4px">${esc(s.title)}</h2>
+    <div class="note">${esc(s.date)}${team ? ' · ' + esc(team) : ''} · ${sessionTotal(s)} min${+s.target ? ` of ${esc(s.target)}` : ''}</div>
+    ${s.notes ? `<p style="margin:10px 0 0">${multi(s.notes)}</p>` : ''}
+    ${!isShared ? `<div class="row noprint" style="margin-top:12px"><button type="button" data-a="sessShare" data-id="${s.id}" aria-pressed="true">Share</button>
+      <button type="button" data-a="sessText" data-id="${s.id}">Copy as text</button><button type="button" data-a="printPage">Print</button></div><div id="shareOut" class="noprint"></div>` : ''}
+    <div style="margin-top:14px">${blocks || '<p class="hint">No blocks in this training.</p>'}</div>
+    ${equip.length ? `<h3 style="margin:16px 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Equipment</h3>
+      <ul class="note" style="margin:0;padding-left:18px">${equip.map(([n, e]) => `<li>${esc(n)}: ${esc(e)}</li>`).join('')}</ul>` : ''}
+  </div>${isShared ? '' : sessionPrintHTML(s)}`;
+}
+
 function renderSessions(){
-  const s = curSession();
-  $('trainBody').innerHTML = `<div class="card noprint">
-    <div class="row">
-      ${store.sessions.length ? `<select class="f" id="sessSel" style="max-width:320px" aria-label="Session">${store.sessions.map(x => `<option value="${x.id}"${s && s.id === x.id ? ' selected' : ''}>${esc(x.date)} · ${esc(x.title)}</option>`).join('')}</select>` : ''}
-      <button type="button" data-a="sessNew">New session</button>
-      ${s ? `<button type="button" data-a="sessDup">Duplicate</button><button type="button" data-a="printPage">Print plan</button><button type="button" class="danger" data-a="sessDel">Delete</button>` : ''}
-    </div>
-    ${!s ? '<p class="hint" style="margin:12px 0 0">Make a session, then add drills from the library or your own blocks.</p>' : ''}
-  </div>${s ? sessionEditorHTML(s) + sessionPrintHTML(s) : ''}`;
+  const body = $('trainBody'), mode = store.ui.sessMode, s = curSession();
+  if (shared){ body.innerHTML = trainingViewHTML(shared, true); return; }
+  if (!s || mode === 'list'){ body.innerHTML = sessionListHTML(); return; }
+  if (mode === 'view'){ body.innerHTML = trainingViewHTML(s, false); return; }
+  body.innerHTML = `<div class="card noprint"><div class="row">
+      <button type="button" data-a="sessList">← All trainings</button>
+      <button type="button" data-a="sessOpen" data-id="${s.id}" aria-pressed="true">Done, view</button>
+      <button type="button" data-a="sessDup">Duplicate</button><button type="button" data-a="printPage">Print</button><button type="button" class="danger" data-a="sessDel">Delete</button>
+    </div></div>${sessionEditorHTML(s)}${sessionPrintHTML(s)}`;
 }
 
 function sessionEditorHTML(s){
@@ -1334,11 +1468,18 @@ document.addEventListener('click', e => {
     case 'drillDel': if (sure(b, 'Delete this drill?')){ store.drills = store.drills.filter(d => d.id !== id); saveStore(); fillDrillList(); } break;
     case 'drillCopy': { const d = drillById(id); store.drills.push(Object.assign({}, d, {id:'c-' + uid(), seed:undefined, name:d.name + ' (mine)'})); saveStore(); fillDrillList(); toast('Copied to your drills'); break; }
     case 'drillAdd': addDrillToSession(id); break;
-    case 'sessNew': newSession(); saveStore(); renderSessions(); break;
-    case 'sessDel': if (sure(b, `Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; saveStore(); renderSessions(); } break;
+    case 'sessNew': newSession(); store.ui.sessMode = 'edit'; saveStore(); renderSessions(); break;
+    case 'sessOpen': store.activeSession = id; store.ui.sessMode = 'view'; saveStore(); renderSessions(); window.scrollTo(0, 0); break;
+    case 'sessEdit': store.activeSession = id; store.ui.sessMode = 'edit'; saveStore(); renderSessions(); window.scrollTo(0, 0); break;
+    case 'sessList': store.ui.sessMode = 'list'; saveStore(); renderSessions(); break;
+    case 'sessShare': shareSession(store.sessions.find(x => x.id === id)); break;
+    case 'sessText': copyText(sessionText(store.sessions.find(x => x.id === id)), 'Training copied as text'); break;
+    case 'sharedSave': saveShared(); break;
+    case 'sharedClose': closeShared(); break;
+    case 'sessDel': if (sure(b, `Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; store.ui.sessMode = 'list'; saveStore(); renderSessions(); } break;
     case 'sessAddDrill': addDrillToSession($('sessAddSel').value); renderSessions(); break;
     case 'sessAddBlock': { const n = $('blockName').value.trim(); if (!n){ toast('Type a name for the block'); $('blockName').focus(); break; } s.items.push({id:uid(), drillId:null, title:n, mins:5, phase:$('blockPhase').value, note:''}); saveStore(); renderSessions(); break; }
-    case 'sessDup': { const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.title = s.title + ' (copy)'; c.items.forEach(i => { i.id = uid(); }); store.sessions.unshift(c); store.activeSession = c.id; saveStore(); renderSessions(); toast('Session duplicated'); break; }
+    case 'sessDup': { const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.title = s.title + ' (copy)'; c.items.forEach(i => { i.id = uid(); }); store.sessions.unshift(c); store.activeSession = c.id; store.ui.sessMode = 'edit'; saveStore(); renderSessions(); toast('Training duplicated'); break; }
     case 'sessOrder': s.items.sort((x, y) => PHASES.indexOf(itemPhase(x)) - PHASES.indexOf(itemPhase(y))); saveStore(); renderSessions(); break;
     case 'fav': e.preventDefault(); store.fav = isFav(id) ? store.fav.filter(x => x !== id) : store.fav.concat(id); saveStore(); fillDrillList(); break;
     case 'drillClear': Object.assign(store.ui, {drillCat:'All', drillPhase:'All', drillLevel:'Any', drillMax:'Any', drillSort:'order', favOnly:false, drillQ:''}); saveStore(); renderDrills(); break;
@@ -1408,7 +1549,9 @@ document.addEventListener('keydown', e => {
   else if (id === 'blockName'){ e.preventDefault(); document.querySelector('[data-a=sessAddBlock]').click(); }
 });
 
+loadShared();
 showTab(store.tab);
+window.addEventListener('hashchange', () => { loadShared(); if (shared) showTab('training'); });
 </script>
 </body>
 </html>
