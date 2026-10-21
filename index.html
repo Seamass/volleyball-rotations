@@ -50,6 +50,11 @@ button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);co
 .controls .grp>span{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
 .rot button{min-width:44px;min-height:44px;font-size:1.05rem}
 .mode button{min-height:44px;padding:8px 18px}
+.step button{min-height:52px;padding:8px 22px;font-size:1.05rem;font-weight:700}
+.moves{margin:0 0 14px;font-size:.9rem}
+.moves h3{margin:0 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.moves ul{list-style:none;margin:6px 0 0;padding:0}
+.moves li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line)}
 
 .stage{display:grid;grid-template-columns:minmax(0,560px) 1fr;gap:20px;align-items:start}
 .court-wrap h3{margin:0 0 6px;font-size:1.05rem}
@@ -92,6 +97,9 @@ table.t td.n,table.t th.n{text-align:center;font-variant-numeric:tabular-nums}
 .dcard .body{margin-top:10px;font-size:.92rem}
 .dcard .body h4{margin:10px 0 2px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .dcard .body p{margin:0}
+.phasehd{margin:18px 0 8px;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.star{min-height:0;border:none;background:none;padding:0 6px 0 0;font-size:1.3rem;line-height:1;color:#e0a000}
+.star:hover{border:none;color:#f2b01e}
 .tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:.75rem;font-weight:600;background:var(--field);border:1px solid var(--line);color:var(--muted)}
 .item{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:center}
 .item .mins{width:76px}
@@ -181,6 +189,12 @@ button.danger{color:#e0524f}
     <div class="controls">
       <div class="grp rot"><span>Rotation</span>
         <div class="seg" id="rotBtns"></div>
+      </div>
+      <div class="grp step"><span>Rotate the team</span>
+        <div class="seg">
+          <button type="button" data-step="-1" aria-label="Go back one rotation">◀ Back 1</button>
+          <button type="button" data-step="1" aria-pressed="true" aria-label="Rotate everyone one spot">Rotate ▶</button>
+        </div>
       </div>
       <div class="grp mode"><span>Situation</span>
         <div class="seg">
@@ -390,6 +404,16 @@ function listHTML(r, mode){
   return `<h3>Front row</h3><ul>${[4,3,2].map(row).join('')}</ul><h3>Back row</h3><ul>${[5,6,1].map(row).join('')}</ul>`;
 }
 
+// Explains the last rotation step: who moved from which zone to which, so anyone can follow it.
+function movesHTML(r, mode){
+  const prev = r === 1 ? 6 : r - 1, order = [2,1,6,5,4,3];
+  const moves = [1,2,3,4,5,6].map(z => ({p:state.players[z], from:zoneAfter(z, prev), to:zoneAfter(z, r)})).sort((a, b) => order.indexOf(a.from) - order.indexOf(b.from));
+  return `<div class="moves"><h3>Moving into rotation ${r}</h3>
+    <div class="note">Everyone steps one spot clockwise: zone 2 to 1, 1 to 6, 6 to 5, 5 to 4, 4 to 3, 3 to 2.</div>
+    <ul>${moves.map(m => `<li><span>${esc(label(m.p))}</span><span>zone ${m.from} → ${m.to}${m.to === 1 && mode === 'serve' ? ' · serves' : ''}</span></li>`).join('')}</ul>
+    ${state.libero.use ? '<div class="note" style="margin-top:6px">The libero swaps in for the middle blocker in the back row.</div>' : ''}</div>`;
+}
+
 function setterNote(r, mode){
   const occ = lineup(r, mode);
   let t = '';
@@ -418,7 +442,7 @@ function render(){
     const r = state.rot, m = state.mode;
     out.innerHTML = `<div class="stage">
       <div class="court-wrap"><h3>Rotation ${r} · ${modeName(m)}</h3>${courtSVG(r,m,'s')}</div>
-      <div class="lineup">${listHTML(r,m)}<p class="note">${esc(setterNote(r,m))}</p>
+      <div class="lineup">${listHTML(r,m)}${movesHTML(r,m)}<p class="note">${esc(setterNote(r,m))}</p>
         <div class="legend">${Object.keys(ROLES).filter(posForSystem).map(k=>`<span class="chip" style="background:${ROLES[k].color};color:${ROLES[k].ink}">${k}</span><span class="note" style="margin-right:6px">${ROLES[k].name}</span>`).join('')}</div>
         ${m==='receive' ? `<p class="note" style="margin-top:12px">${formationNote(r)}</p>` : ''}
         ${LOCKED ? '' : `<p class="note noprint" style="margin-top:8px"><b>Coach mode:</b> drag players to where you want them. Moves are saved on this device. Positions are kept separately for 5-1 and 6-2 (a 6-2 starts from the 5-1 spots). When a system is right in all 18 views, press Export positions.</p>
@@ -497,6 +521,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.mode){ state.mode = b.dataset.mode; save(); render(); }
   if (b.dataset.view){ state.view = b.dataset.view; save(); render(); }
+  if (b.dataset.step){ state.rot = ((state.rot - 1 + (+b.dataset.step)) % 6 + 6) % 6 + 1; state.view = 'single'; save(); render(); }
   if (b.dataset.act==='resetView'){
     const map = state.custom[state.system] || {};
     for (const k of Object.keys(map)) if (k.startsWith(`${state.mode}:${state.rot}:`)) delete map[k];
@@ -583,7 +608,8 @@ const newStore = () => ({
   sessions:[], activeSession:null,
   matches:[], activeMatch:null,
   score:{l:{name:'', sets:0, pts:0}, r:{name:'', sets:0, pts:0}, target:25, hist:[]},
-  ui:{trainTab:'drills', drillCat:'All', drillQ:'', editDrill:null, statsTab:'match'}
+  fav:[],
+  ui:{trainTab:'drills', drillCat:'All', drillPhase:'All', drillLevel:'Any', drillMax:'Any', drillSort:'order', favOnly:false, drillQ:'', editDrill:null, statsTab:'match'}
 });
 let store = (() => {
   try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) { const d = newStore(); return Object.assign(d, s, {ui:Object.assign(d.ui, s.ui)}); } } catch(e){}
@@ -724,7 +750,7 @@ function addPlayer(){
 }
 
 // ---------- Training: drill library ----------
-const DRILL_CATS = ['Warm-up','Passing','Serving','Setting','Attacking','Blocking','Defence','Serve receive','Transition','Team play','Conditioning'];
+const DRILL_CATS = ['Warm-up','Passing','Serving','Setting','Attacking','Blocking','Defence','Serve receive','Transition','Team play','Conditioning','Cool-down'];
 const SEED_DRILLS = [
   {id:'d-dyn', name:'Dynamic movement warm-up', cat:'Warm-up', mins:8, players:'Whole team', level:'All', equip:'None',
    desc:'Players move in lines across the court: high knees, side shuffles, carioca, backpedal, walking lunges with a twist and arm circles. Finish with three approach steps and a jump at the net.',
@@ -799,8 +825,120 @@ const SEED_DRILLS = [
    points:'Keep it short and fast. Finish each wave under control.',
    prog:'Add a ball roll or a dig at the end of each sprint.'}
 ];
-const allDrills = () => SEED_DRILLS.map(d => Object.assign({seed:true}, d)).concat(store.drills);
+const MORE_DRILLS = [
+  {id:'d-ballhandle', name:'Ball-handling circuits', cat:'Warm-up', mins:8, players:'Groups of 3-4', level:'All', equip:'1 ball per player',
+   desc:'Set up four short stations: self-pass above the head, self-set to a wall or partner, passing the ball around the body, and underhand toss and catch while moving. Rotate every 90 seconds.',
+   points:'Eyes on the ball and soft hands. Quality before speed.',
+   prog:'Add a second ball for stronger players.'},
+  {id:'d-arm', name:'Shoulder and arm warm-up', cat:'Warm-up', mins:5, players:'Whole team', level:'All', equip:'None',
+   desc:'Arm circles forward and back, cross-body shoulder stretch, wrist rotations and light trunk twists, then 10 easy shadow arm swings. Keep everything light.',
+   points:'Build range of movement gradually. Stop if anything pinches or hurts.',
+   prog:'Finish with a few self-tosses and easy hits.'},
+  {id:'d-mirror', name:'Mirror shuffle', cat:'Warm-up', mins:5, players:'Pairs', level:'All', equip:'None (cones optional)',
+   desc:'Partners face each other along a line. One leads with side shuffles and quick changes of direction and the other mirrors. Swap leaders every 20 seconds.',
+   points:'Stay low with feet apart and never cross the feet. React to your partner.',
+   prog:'Add a ball roll the follower has to pick up.'},
+  {id:'d-wallpass', name:'Wall passing', cat:'Passing', mins:6, players:'Individual', level:'Beginner', equip:'Ball, a wall',
+   desc:'Stand about 2 m from a wall and pass the ball to a mark above head height, keeping a steady platform. Try for 20 contacts in a row, then step back.',
+   points:'Contact on the forearms between wrist and elbow. Bend the knees and move the feet first.',
+   prog:'Alternate passing and setting off the wall.'},
+  {id:'d-movepass', name:'Move and pass', cat:'Passing', mins:10, players:'Groups of 3', level:'Intermediate', equip:'Balls, cones',
+   desc:'A tosses short, deep and to either side to B. B moves to the ball and passes to C at the target, then returns to the start. After 6 balls rotate.',
+   points:'Move first, then stop and set the platform. Pass off the middle of the body.',
+   prog:'Increase toss speed, or serve instead of tossing.'},
+  {id:'d-servepress', name:'Serve under pressure', cat:'Serving', mins:10, players:'Whole team', level:'Intermediate', equip:'Balls',
+   desc:'Two teams serve in turn from the baseline. A server scores a point for the team by landing a serve in the zone they called; a miss costs the team a point. First team to 10 wins.',
+   points:'Same routine on every serve. Breathe and commit to the target.',
+   prog:'Make deep-zone serves worth double.'},
+  {id:'d-floatserve', name:'Float serve technique', cat:'Serving', mins:10, players:'Pairs', level:'Beginner', equip:'Balls',
+   desc:'Partners serve to each other across the court and move back after five good serves in a row. Focus on a firm, flat contact and a short follow-through so the ball does not spin.',
+   points:'Toss in front of the hitting shoulder. Firm hand, contact the centre of the ball, stop the hand.',
+   prog:'Serve from the baseline and to target zones.'},
+  {id:'d-backset', name:'Back set progression', cat:'Setting', mins:10, players:'Groups of 3', level:'Intermediate', equip:'Balls',
+   desc:'The setter sets forward to one partner, then turns the body slightly and sets behind the head to a partner standing behind. Start standing, then play from a pass.',
+   points:'Same hand shape for front and back sets. Extend through the hips and arms and keep the ball high.',
+   prog:'Add a hitter and ask the setter to mix front and back sets without giving it away.'},
+  {id:'d-setaccuracy', name:'Setting accuracy to target', cat:'Setting', mins:8, players:'Pairs', level:'All', equip:'Balls, a hoop or cone at the net',
+   desc:'Setters set 10 balls to a target at the net from different distances. Score 1 for each ball within 1 m of the target. Play 3 rounds, then swap roles.',
+   points:'Face the target early. Quiet head and the same release height every time.',
+   prog:'Start from a pass instead of a toss.'},
+  {id:'d-tip', name:'Tip and roll shots', cat:'Attacking', mins:10, players:'Groups of 4-6', level:'Intermediate', equip:'Balls',
+   desc:'Hitters take a set and practise soft shots: a tip to the short zone and a roll shot to the deep corners. The coach calls the shot before each swing. Count shots that land in the called zone.',
+   points:'Same approach and arm speed as a full swing. Change only the contact.',
+   prog:'Add a blocker, or call the shot as the set is made.'},
+  {id:'d-quick', name:'Quick middle attack timing', cat:'Attacking', mins:12, players:'Groups of 3-4', level:'Advanced', equip:'Balls',
+   desc:'The setter and middle practise a quick set about a metre above the net. The middle starts the approach as the pass is made and jumps to meet the set. Work with no block first, then add one.',
+   points:'Middle commits early and the setter delivers a flat, accurate set. Call the set before it happens.',
+   prog:'Add a pass from a server and a second hitter to draw the block.'},
+  {id:'d-blkhands', name:'Block hand placement', cat:'Blocking', mins:8, players:'Pairs along the net', level:'Beginner', equip:'Balls',
+   desc:'Pairs face each other across the net. One holds a ball just above the top of the net and the blocker jumps and presses the hands over the net towards the ball without touching the net. Swap after 6 jumps.',
+   points:'Hands wide and firm with fingers spread. Press over, not up. Land softly on both feet.',
+   prog:'Add a tosser and block live balls.'},
+  {id:'d-roll', name:'Roll and recover', cat:'Defence', mins:10, players:'Groups of 3-4', level:'Intermediate', equip:'Balls, knee pads, a soft surface if possible',
+   desc:'A coach tosses or hits balls to the side and short. Defenders reach to dig, roll safely and recover to a ready position. Start slowly and build speed.',
+   points:'Reach with the platform and roll through the side of the body. Get up quickly. Stop if anyone is not comfortable.',
+   prog:'Increase ball speed, or add a second ball.'},
+  {id:'d-three', name:'Three-person serve receive', cat:'Serve receive', mins:15, players:'Groups of 6-8', level:'Intermediate', equip:'Balls',
+   desc:'Three passers line up across the court with a setter at the target. Servers serve to different spots. Passers talk about who takes the gaps. Score 1 point for each playable pass; first to 15 wins.',
+   points:'Call "mine" early. Stay low and move before the ball. Pass to the target with a high ball.',
+   prog:'Add a hitter to finish each rally.'},
+  {id:'d-formation', name:'Serve receive in your formation', cat:'Serve receive', mins:15, players:'Whole team', level:'All', equip:'Balls',
+   desc:'Set the team in your serve-receive formation for the current rotation, using the Rotations tab as the reference. Coaches serve and the team passes, sets and hits. Rotate after 6 balls so everyone learns each rotation.',
+   points:'Every player knows where to stand and where to go after the pass. The setter finds the target and the others cover.',
+   prog:'Serve to the weakest passer, or add scoring.'},
+  {id:'d-freeball', name:'Free ball transition', cat:'Transition', mins:12, players:'Groups of 6', level:'Intermediate', equip:'Balls',
+   desc:'A coach sends a free ball over the net. The receiving team passes, sets and attacks with the hitters calling their approach, then drops back into defence and plays the ball out.',
+   points:'Move to your base spots as soon as the ball is sent. Hitters call for the ball. Everybody knows who covers.',
+   prog:'Add a block against the attack.'},
+  {id:'d-blockdig', name:'Block, dig and transition attack', cat:'Transition', mins:15, players:'6 v 6', level:'Advanced', equip:'Balls, a box',
+   desc:'A coach hits from one side. The defending team blocks and digs, sets and attacks a transition ball against the other block. Play out the rally and count the rallies the defending team wins.',
+   points:'Blockers read the hitter, diggers stay behind the block, hitters call for a high set.',
+   prog:'Add a second coach attack.'},
+  {id:'d-rotwalk', name:'Rotation walk-through', cat:'Team play', mins:10, players:'6 players', level:'Beginner', equip:'None',
+   desc:'Players take their rotation 1 spots. The coach calls "Rotate" and everyone moves one place clockwise (zone 2 to 1, 1 to 6, 6 to 5, 5 to 4, 4 to 3, 3 to 2). Check each position against the Rotations tab. Walk through all six rotations, then repeat for serve receive.',
+   points:'The player who moves into zone 1 serves. Say the zone out loud as you move. The libero swaps with the middle in the back row.',
+   prog:'Do it at a jog, add a serve in rotation 1, then try without the diagram.'},
+  {id:'d-triples', name:'3 v 3 triples', cat:'Team play', mins:12, players:'Groups of 6', level:'All', equip:'Balls',
+   desc:'Play 3 v 3 on a half court to 11 or 15 with rally scoring. Each team must use three contacts. Rotate teams after each game.',
+   points:'More touches for everyone. Talk on every ball.',
+   prog:'Add a serving requirement or a time limit.'},
+  {id:'d-focus', name:'Six v six with a focus', cat:'Team play', mins:15, players:'6 v 6', level:'All', equip:'Balls',
+   desc:'Play a normal rally game but give each team one focus, for example a good first pass or a kill from the outside. Award a bonus point when the focus is achieved. Stop between games to talk about it.',
+   points:'Pick one thing only. Give feedback between rallies, not during them.',
+   prog:'Change the focus each game.'},
+  {id:'d-rope', name:'Jump rope intervals', cat:'Conditioning', mins:6, players:'Whole team', level:'All', equip:'Jump ropes',
+   desc:'Work for 30 seconds and rest for 30 seconds, six times. Mix single jumps, high knees and side-to-side jumps.',
+   points:'Light on the toes and let the wrists turn the rope.',
+   prog:'Lengthen the work time to 40 seconds.'},
+  {id:'d-cooldown', name:'Cool-down stretch', cat:'Cool-down', mins:5, players:'Whole team', level:'All', equip:'None',
+   desc:'Walk slowly for a minute, then hold each stretch for about 20 seconds: calves, quadriceps, hamstrings, hips, shoulders and wrists. Breathe slowly.',
+   points:'Stretch to mild tension, never pain. Keep breathing.',
+   prog:''},
+  {id:'d-debrief', name:'Team debrief', cat:'Cool-down', mins:5, players:'Whole team', level:'All', equip:'None',
+   desc:'Gather the team and ask for one thing that went well and one thing to work on next time. Give a quick preview of the next session.',
+   points:'Keep it positive and short. Finish with a team cheer.',
+   prog:''}
+];
+
+const PHASES = ['Warm-up','Skill','Game play','Fitness & cool-down'];
+const PHASE_BY_CAT = {'Warm-up':'Warm-up', Passing:'Skill', Serving:'Skill', Setting:'Skill', Attacking:'Skill', Blocking:'Skill', Defence:'Skill',
+  'Serve receive':'Skill', Transition:'Skill', 'Team play':'Game play', Conditioning:'Fitness & cool-down', 'Cool-down':'Fitness & cool-down'};
+const LEVEL_RANK = {Beginner:0, All:1, Intermediate:2, Advanced:3};
+const phaseOf = d => d.phase || PHASE_BY_CAT[d.cat] || 'Skill';
+const rankOf = d => LEVEL_RANK[d.level] ?? 1;
+const allDrills = () => SEED_DRILLS.concat(MORE_DRILLS).map(d => Object.assign({seed:true}, d)).concat(store.drills);
 const drillById = id => allDrills().find(d => d.id === id);
+const isFav = id => store.fav.includes(id);
+
+// Session order: warm-up first, then skill work, then game play, then fitness and cool-down.
+const SORTS = {
+  order: (a, b) => PHASES.indexOf(phaseOf(a)) - PHASES.indexOf(phaseOf(b)) || DRILL_CATS.indexOf(a.cat) - DRILL_CATS.indexOf(b.cat) || rankOf(a) - rankOf(b) || a.name.localeCompare(b.name),
+  name:  (a, b) => a.name.localeCompare(b.name),
+  short: (a, b) => (+a.mins) - (+b.mins) || a.name.localeCompare(b.name),
+  long:  (a, b) => (+b.mins) - (+a.mins) || a.name.localeCompare(b.name),
+  level: (a, b) => rankOf(a) - rankOf(b) || SORTS.order(a, b)
+};
+const SORT_LABELS = {order:'Session order', name:'Name A to Z', short:'Shortest first', long:'Longest first', level:'Easiest first'};
 
 function renderTraining(){
   const tt = store.ui.trainTab;
@@ -811,11 +949,14 @@ function renderTraining(){
 
 function drillFormHTML(){
   const id = store.ui.editDrill; if (!id) return '';
-  const d = id === 'new' ? {name:'', cat:'Passing', mins:10, players:'', equip:'', desc:'', points:'', prog:''} : drillById(id);
+  const d = id === 'new' ? {name:'', cat:'Passing', mins:10, players:'', equip:'', desc:'', points:'', prog:'', level:'All', phase:''} : drillById(id);
+  const opts = (list, sel) => list.map(c => `<option${c === sel ? ' selected' : ''}>${c}</option>`).join('');
   return `<div class="card noprint"><h2>${id === 'new' ? 'New drill' : 'Edit drill'}</h2>
     <div class="fgrid">
       <div><label class="fl" for="dName">Name</label><input class="f" id="dName" value="${esc(d.name)}"></div>
-      <div><label class="fl" for="dCat">Category</label><select class="f" id="dCat">${DRILL_CATS.map(c => `<option${c === d.cat ? ' selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label class="fl" for="dCat">Category</label><select class="f" id="dCat">${opts(DRILL_CATS, d.cat)}</select></div>
+      <div><label class="fl" for="dPhase">Part of the session</label><select class="f" id="dPhase"><option value="">Automatic (from category)</option>${PHASES.map(c => `<option${c === d.phase ? ' selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label class="fl" for="dLevel">Level</label><select class="f" id="dLevel">${opts(['All','Beginner','Intermediate','Advanced'], d.level || 'All')}</select></div>
       <div><label class="fl" for="dMins">Minutes</label><input class="f" id="dMins" type="number" min="1" max="120" value="${esc(d.mins)}"></div>
       <div><label class="fl" for="dPlayers">Players</label><input class="f" id="dPlayers" value="${esc(d.players)}" placeholder="e.g. pairs, 6 v 6"></div>
       <div><label class="fl" for="dEquip">Equipment</label><input class="f" id="dEquip" value="${esc(d.equip)}"></div>
@@ -828,25 +969,33 @@ function drillFormHTML(){
 
 function renderDrills(){
   const u = store.ui;
-  $('trainBody').innerHTML = `<div class="card">
-    <div class="row noprint">
-      <input class="f" id="drillQ" type="search" placeholder="Search drills" value="${esc(u.drillQ)}" style="max-width:260px" aria-label="Search drills">
-      <select class="f" id="drillCat" style="max-width:200px" aria-label="Category">${['All', ...DRILL_CATS].map(c => `<option${c === u.drillCat ? ' selected' : ''}>${c}</option>`).join('')}</select>
-      <button type="button" data-a="drillNew">Add your own drill</button>
+  const sel = (key, label, list, cur) => `<div style="flex:1 1 140px;min-width:120px"><label class="fl" for="df-${key}">${label}</label>
+    <select class="f" id="df-${key}" data-df="${key}">${list.map(([v, l]) => `<option value="${v}"${String(v) === String(cur) ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
+  $('trainBody').innerHTML = `<div class="card noprint">
+    <div class="row" style="align-items:flex-end">
+      <div style="flex:2 1 200px"><label class="fl" for="drillQ">Search</label><input class="f" id="drillQ" type="search" placeholder="Name, skill or equipment" value="${esc(u.drillQ)}"></div>
+      ${sel('drillCat', 'Skill', [['All', 'All skills']].concat(DRILL_CATS.map(c => [c, c])), u.drillCat)}
+      ${sel('drillPhase', 'Part of session', [['All', 'Any part']].concat(PHASES.map(c => [c, c])), u.drillPhase)}
+      ${sel('drillLevel', 'Level', [['Any', 'Any level'], ['Beginner', 'Beginner'], ['Intermediate', 'Intermediate'], ['Advanced', 'Advanced']], u.drillLevel)}
+      ${sel('drillMax', 'Length', [['Any', 'Any length'], [5, 'Up to 5 min'], [10, 'Up to 10 min'], [15, 'Up to 15 min']], u.drillMax)}
+      ${sel('drillSort', 'Sort by', Object.keys(SORT_LABELS).map(k => [k, SORT_LABELS[k]]), u.drillSort)}
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="row" style="font-size:.9rem"><input type="checkbox" data-df="favOnly"${u.favOnly ? ' checked' : ''}> Favourites only</label>
+      <button type="button" data-a="drillClear">Clear filters</button>
+      <button type="button" data-a="drillNew" style="margin-left:auto">Add your own drill</button>
     </div>
     <p class="note" id="drillCount" style="margin:10px 0 0"></p>
   </div>${drillFormHTML()}<div id="drillList"></div>`;
   fillDrillList();
 }
 
-function fillDrillList(){
-  const u = store.ui, q = u.drillQ.trim().toLowerCase();
-  const list = allDrills().filter(d => (u.drillCat === 'All' || d.cat === u.drillCat) &&
-    (!q || [d.name, d.cat, d.desc, d.equip, d.points].join(' ').toLowerCase().includes(q)));
-  $('drillCount').textContent = `${list.length} drill${list.length === 1 ? '' : 's'}`;
-  $('drillList').innerHTML = list.map(d => `<details class="dcard"><summary><b>${esc(d.name)}</b>
-      <span class="tag">${esc(d.cat)}</span><span class="note">${esc(d.mins)} min · ${esc(d.players || 'any')}</span></summary>
+function drillCardHTML(d){
+  return `<details class="dcard"><summary><button type="button" class="star" data-a="fav" data-id="${d.id}" aria-label="${isFav(d.id) ? 'Remove from favourites' : 'Add to favourites'}">${isFav(d.id) ? '★' : '☆'}</button>
+      <b>${esc(d.name)}</b><span class="tag">${esc(d.cat)}</span><span class="tag">${esc(d.level || 'All')}</span>
+      <span class="note">${esc(d.mins)} min · ${esc(d.players || 'any')}</span></summary>
     <div class="body">
+      <h4>Part of the session</h4><p>${esc(phaseOf(d))}</p>
       ${d.equip ? `<h4>Equipment</h4><p>${esc(d.equip)}</p>` : ''}
       <h4>How it works</h4><p>${multi(d.desc)}</p>
       ${d.points ? `<h4>Coaching points</h4><p>${multi(d.points)}</p>` : ''}
@@ -854,13 +1003,33 @@ function fillDrillList(){
       <div class="actions noprint"><button type="button" data-a="drillAdd" data-id="${d.id}" aria-pressed="true">Add to session</button>
         ${d.seed ? `<button type="button" data-a="drillCopy" data-id="${d.id}">Make my own copy</button>`
                  : `<button type="button" data-a="drillEdit" data-id="${d.id}">Edit</button><button type="button" class="danger" data-a="drillDel" data-id="${d.id}">Delete</button>`}</div>
-    </div></details>`).join('') || '<p class="hint">No drills match.</p>';
+    </div></details>`;
+}
+
+function fillDrillList(){
+  const u = store.ui, q = u.drillQ.trim().toLowerCase();
+  const list = allDrills().filter(d =>
+      (u.drillCat === 'All' || d.cat === u.drillCat) &&
+      (u.drillPhase === 'All' || phaseOf(d) === u.drillPhase) &&
+      (u.drillLevel === 'Any' || d.level === 'All' || d.level === u.drillLevel) &&
+      (u.drillMax === 'Any' || (+d.mins) <= +u.drillMax) &&
+      (!u.favOnly || isFav(d.id)) &&
+      (!q || [d.name, d.cat, d.desc, d.equip, d.points, d.players].join(' ').toLowerCase().includes(q)))
+    .sort(SORTS[u.drillSort] || SORTS.order);
+  const mins = list.reduce((n, d) => n + (+d.mins || 0), 0);
+  $('drillCount').textContent = `${list.length} drill${list.length === 1 ? '' : 's'} · ${store.fav.length} favourite${store.fav.length === 1 ? '' : 's'}`;
+  let html = '', lastPhase = '';
+  for (const d of list){
+    if (u.drillSort === 'order' && phaseOf(d) !== lastPhase){ lastPhase = phaseOf(d); html += `<h3 class="phasehd">${esc(lastPhase)}</h3>`; }
+    html += drillCardHTML(d);
+  }
+  $('drillList').innerHTML = html || '<p class="hint">No drills match. Try clearing the filters.</p>';
 }
 
 function saveDrill(){
   const name = $('dName').value.trim(); if (!name){ $('dName').focus(); return; }
   const id = store.ui.editDrill === 'new' ? 'c-' + uid() : store.ui.editDrill;
-  const d = {id, name, cat:$('dCat').value, mins:+$('dMins').value || 10, players:$('dPlayers').value.trim(), equip:$('dEquip').value.trim(),
+  const d = {id, name, cat:$('dCat').value, phase:$('dPhase').value, level:$('dLevel').value, mins:+$('dMins').value || 10, players:$('dPlayers').value.trim(), equip:$('dEquip').value.trim(),
     desc:$('dDesc').value.trim(), points:$('dPoints').value.trim(), prog:$('dProg').value.trim()};
   const i = store.drills.findIndex(x => x.id === id);
   if (i >= 0) store.drills[i] = d; else store.drills.push(d);
@@ -870,18 +1039,41 @@ function saveDrill(){
 // ---------- Training: session plans ----------
 const curSession = () => store.sessions.find(s => s.id === store.activeSession) || null;
 function newSession(){
-  const s = {id:uid(), title:'Training session', date:today(), teamId:'', notes:'', items:[]};
+  const s = {id:uid(), title:'Training session', date:today(), teamId:'', notes:'', target:90, items:[]};
   store.sessions.unshift(s); store.activeSession = s.id; return s;
 }
 const itemName = it => { const d = it.drillId && drillById(it.drillId); return d ? d.name : it.title; };
 const sessionTotal = s => s.items.reduce((n, it) => n + (+it.mins || 0), 0);
+const itemPhase = it => it.phase || 'Skill';
 
 function addDrillToSession(drillId){
   const d = drillById(drillId); if (!d) return;
   const s = curSession() || newSession();
-  s.items.push({id:uid(), drillId, title:d.name, mins:d.mins, note:''});
+  s.items.push({id:uid(), drillId, title:d.name, mins:d.mins, phase:phaseOf(d), note:''});
   saveStore(); toast(`Added to "${s.title}"`);
 }
+
+function sessionEquipment(s){
+  const seen = new Set(), out = [];
+  for (const it of s.items){
+    const d = it.drillId && drillById(it.drillId);
+    if (d && d.equip && !/^none/i.test(d.equip) && !seen.has(d.equip)){ seen.add(d.equip); out.push([d.name, d.equip]); }
+  }
+  return out;
+}
+
+function sessionSummaryHTML(s){
+  const total = sessionTotal(s), target = +s.target || 0;
+  const diff = target ? target - total : null;
+  const status = diff === null ? '' : diff > 0 ? `${diff} min left` : diff < 0 ? `${-diff} min over` : 'Right on time';
+  const per = PHASES.map(p => [p, s.items.filter(i => itemPhase(i) === p).reduce((n, i) => n + (+i.mins || 0), 0)]);
+  const equip = sessionEquipment(s);
+  return `<div class="row" style="margin:8px 0"><b>${total} min planned${target ? ` of ${target}` : ''}</b>${status ? `<span class="tag" style="${diff < 0 ? 'color:#e0524f' : ''}">${status}</span>` : ''}</div>
+    <div class="row" style="gap:6px">${per.map(([p, m]) => `<span class="tag">${esc(p)}: ${m} min</span>`).join('')}</div>
+    ${equip.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600;font-size:.9rem">Equipment needed (${equip.length})</summary>
+      <ul class="note" style="margin:6px 0 0;padding-left:18px">${equip.map(([n, e]) => `<li>${esc(n)}: ${esc(e)}</li>`).join('')}</ul></details>` : ''}`;
+}
+function fillSessionSummary(s){ const el = $('sessSummary'); if (el) el.innerHTML = sessionSummaryHTML(s); }
 
 function renderSessions(){
   const s = curSession();
@@ -889,7 +1081,7 @@ function renderSessions(){
     <div class="row">
       ${store.sessions.length ? `<select class="f" id="sessSel" style="max-width:320px" aria-label="Session">${store.sessions.map(x => `<option value="${x.id}"${s && s.id === x.id ? ' selected' : ''}>${esc(x.date)} · ${esc(x.title)}</option>`).join('')}</select>` : ''}
       <button type="button" data-a="sessNew">New session</button>
-      ${s ? `<button type="button" data-a="printPage">Print plan</button><button type="button" class="danger" data-a="sessDel">Delete</button>` : ''}
+      ${s ? `<button type="button" data-a="sessDup">Duplicate</button><button type="button" data-a="printPage">Print plan</button><button type="button" class="danger" data-a="sessDel">Delete</button>` : ''}
     </div>
     ${!s ? '<p class="hint" style="margin:12px 0 0">Make a session, then add drills from the library or your own blocks.</p>' : ''}
   </div>${s ? sessionEditorHTML(s) + sessionPrintHTML(s) : ''}`;
@@ -898,41 +1090,53 @@ function renderSessions(){
 function sessionEditorHTML(s){
   const teamOpts = `<option value="">No team</option>` + store.teams.map(t => `<option value="${t.id}"${s.teamId === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
   const items = s.items.map((it, i) => `<div class="item">
-      <div><b>${esc(itemName(it))}</b>${it.drillId ? '' : ' <span class="tag">custom</span>'}
+      <div><b>${esc(itemName(it))}</b> <span class="tag">${esc(itemPhase(it))}</span>${it.drillId ? '' : ' <span class="tag">custom</span>'}
         <input class="f" data-sf="note" data-id="${it.id}" value="${esc(it.note)}" placeholder="Notes for this block" aria-label="Notes" style="margin-top:6px"></div>
       <div class="row" style="flex-wrap:nowrap">
         <input class="f mins" type="number" min="1" max="180" data-sf="mins" data-id="${it.id}" value="${esc(it.mins)}" aria-label="Minutes">
         <button type="button" data-a="itemUp" data-id="${it.id}" aria-label="Move up"${i === 0 ? ' disabled' : ''}>↑</button>
         <button type="button" data-a="itemDown" data-id="${it.id}" aria-label="Move down"${i === s.items.length - 1 ? ' disabled' : ''}>↓</button>
         <button type="button" data-a="itemDel" data-id="${it.id}" aria-label="Remove">✕</button></div></div>`).join('');
+  const favs = allDrills().filter(d => isFav(d.id));
+  const drillOpt = d => `<option value="${d.id}">${esc(d.name)} (${esc(d.mins)} min)</option>`;
+  const picker = (favs.length ? `<optgroup label="★ Favourites">${favs.map(drillOpt).join('')}</optgroup>` : '') +
+    PHASES.map(p => `<optgroup label="${p}">${allDrills().filter(d => phaseOf(d) === p).sort(SORTS.order).map(drillOpt).join('')}</optgroup>`).join('');
   return `<div class="card noprint">
     <div class="fgrid">
       <div><label class="fl" for="sTitle">Title</label><input class="f" id="sTitle" data-sf="title" value="${esc(s.title)}"></div>
       <div><label class="fl" for="sDate">Date</label><input class="f" id="sDate" type="date" data-sf="date" value="${esc(s.date)}"></div>
       <div><label class="fl" for="sTeam">Team</label><select class="f" id="sTeam" data-sf="teamId">${teamOpts}</select></div>
+      <div><label class="fl" for="sTarget">Session length (min)</label><input class="f" id="sTarget" type="number" min="10" max="240" data-sf="target" value="${esc(s.target || 90)}"></div>
     </div>
     <label class="fl" for="sNotes" style="margin-top:10px">Session goals and notes</label>
     <textarea class="f" id="sNotes" rows="2" data-sf="notes">${esc(s.notes)}</textarea>
-    <h2 style="margin-top:16px">Plan · <span id="sessTotal">${sessionTotal(s)}</span> min</h2>
-    ${items || '<p class="hint">No blocks yet.</p>'}
+    <h2 style="margin-top:16px">Plan</h2>
+    <div id="sessSummary">${sessionSummaryHTML(s)}</div>
+    ${items || '<p class="hint">No blocks yet. Add a drill below, or use Add to session in the drill library.</p>'}
     <div class="row" style="margin-top:12px">
-      <select class="f" id="sessAddSel" style="max-width:300px" aria-label="Add a drill">${DRILL_CATS.map(c => `<optgroup label="${c}">${allDrills().filter(d => d.cat === c).map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.mins)} min)</option>`).join('')}</optgroup>`).join('')}</select>
-      <button type="button" data-a="sessAddDrill">Add drill</button>
+      <select class="f" id="sessAddSel" style="max-width:320px" aria-label="Add a drill">${picker}</select>
+      <button type="button" data-a="sessAddDrill" aria-pressed="true">Add drill</button>
+      ${s.items.length > 1 ? '<button type="button" data-a="sessOrder">Sort into session order</button>' : ''}
+    </div>
+    <div class="row" style="margin-top:10px">
       <input class="f" id="blockName" placeholder="Custom block, e.g. Team talk" style="max-width:240px" aria-label="Custom block name">
+      <select class="f" id="blockPhase" style="max-width:180px" aria-label="Part of the session">${PHASES.map(p => `<option${p === 'Skill' ? ' selected' : ''}>${p}</option>`).join('')}</select>
       <button type="button" data-a="sessAddBlock">Add custom block</button>
     </div></div>`;
 }
 
 function sessionPrintHTML(s){
   const team = store.teams.find(t => t.id === s.teamId);
+  const equip = sessionEquipment(s);
   let clock = 0;
   const rows = s.items.map(it => {
     const d = it.drillId && drillById(it.drillId); const start = clock; clock += +it.mins || 0;
-    return `<tr><td class="n">${start}–${clock}</td><td><b>${esc(itemName(it))}</b>${d ? `<br><span class="note">${esc(d.desc)}</span>` : ''}${it.note ? `<br><i>${esc(it.note)}</i>` : ''}</td><td class="n">${esc(it.mins)}</td></tr>`;
+    return `<tr><td class="n">${start}–${clock}</td><td><b>${esc(itemName(it))}</b> <span class="note">(${esc(itemPhase(it))})</span>${d ? `<br><span class="note">${esc(d.desc)}</span>` : ''}${it.note ? `<br><i>${esc(it.note)}</i>` : ''}</td><td class="n">${esc(it.mins)}</td></tr>`;
   }).join('');
-  return `<div class="printonly"><h2>${esc(s.title)}</h2><p>${esc(s.date)}${team ? ' · ' + esc(team.name) : ''} · ${sessionTotal(s)} minutes</p>
+  return `<div class="printonly"><h2>${esc(s.title)}</h2><p>${esc(s.date)}${team ? ' · ' + esc(team.name) : ''} · ${sessionTotal(s)} of ${esc(s.target || 90)} minutes</p>
     ${s.notes ? `<p>${multi(s.notes)}</p>` : ''}
-    <table class="t"><thead><tr><th>Time</th><th>Activity</th><th class="n">Min</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table class="t"><thead><tr><th>Time</th><th>Activity</th><th class="n">Min</th></tr></thead><tbody>${rows}</tbody></table>
+    ${equip.length ? `<p><b>Equipment:</b> ${equip.map(([n, e]) => esc(e)).filter((v, i, a) => a.indexOf(v) === i).join('; ')}</p>` : ''}</div>`;
 }
 
 // ---------- Stats: scoring and stat taker ----------
@@ -1133,7 +1337,11 @@ document.addEventListener('click', e => {
     case 'sessNew': newSession(); saveStore(); renderSessions(); break;
     case 'sessDel': if (sure(b, `Delete "${s.title}"?`)){ store.sessions = store.sessions.filter(x => x.id !== s.id); store.activeSession = null; saveStore(); renderSessions(); } break;
     case 'sessAddDrill': addDrillToSession($('sessAddSel').value); renderSessions(); break;
-    case 'sessAddBlock': { const n = $('blockName').value.trim(); if (!n){ toast('Type a name for the block'); $('blockName').focus(); break; } s.items.push({id:uid(), drillId:null, title:n, mins:5, note:''}); saveStore(); renderSessions(); break; }
+    case 'sessAddBlock': { const n = $('blockName').value.trim(); if (!n){ toast('Type a name for the block'); $('blockName').focus(); break; } s.items.push({id:uid(), drillId:null, title:n, mins:5, phase:$('blockPhase').value, note:''}); saveStore(); renderSessions(); break; }
+    case 'sessDup': { const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.title = s.title + ' (copy)'; c.items.forEach(i => { i.id = uid(); }); store.sessions.unshift(c); store.activeSession = c.id; saveStore(); renderSessions(); toast('Session duplicated'); break; }
+    case 'sessOrder': s.items.sort((x, y) => PHASES.indexOf(itemPhase(x)) - PHASES.indexOf(itemPhase(y))); saveStore(); renderSessions(); break;
+    case 'fav': e.preventDefault(); store.fav = isFav(id) ? store.fav.filter(x => x !== id) : store.fav.concat(id); saveStore(); fillDrillList(); break;
+    case 'drillClear': Object.assign(store.ui, {drillCat:'All', drillPhase:'All', drillLevel:'Any', drillMax:'Any', drillSort:'order', favOnly:false, drillQ:''}); saveStore(); renderDrills(); break;
     case 'itemDel': s.items = s.items.filter(x => x.id !== id); saveStore(); renderSessions(); break;
     case 'itemUp': case 'itemDown': { const i = s.items.findIndex(x => x.id === id), j = a === 'itemUp' ? i - 1 : i + 1;
       if (j >= 0 && j < s.items.length){ [s.items[i], s.items[j]] = [s.items[j], s.items[i]]; saveStore(); renderSessions(); } break; }
@@ -1176,8 +1384,8 @@ document.addEventListener('input', e => {
   else if (el.id === 'drillQ'){ store.ui.drillQ = el.value; saveStore(); fillDrillList(); }
   else if (el.dataset.sf){
     const s = curSession(); if (!s) return;
-    if (el.dataset.id){ const it = s.items.find(x => x.id === el.dataset.id); if (it){ it[el.dataset.sf] = el.dataset.sf === 'mins' ? (+el.value || 0) : el.value; $('sessTotal').textContent = sessionTotal(s); } }
-    else s[el.dataset.sf] = el.value;
+    if (el.dataset.id){ const it = s.items.find(x => x.id === el.dataset.id); if (it){ it[el.dataset.sf] = el.dataset.sf === 'mins' ? (+el.value || 0) : el.value; fillSessionSummary(s); } }
+    else { s[el.dataset.sf] = el.dataset.sf === 'target' ? (+el.value || 0) : el.value; if (el.dataset.sf === 'target') fillSessionSummary(s); }
     saveStore();
   }
 });
@@ -1186,7 +1394,7 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.sc && el.dataset.sc !== 'name'){ renderScore(); }
   else if (el.id === 'teamSel'){ store.activeTeam = el.value; saveStore(); renderTeams(); }
-  else if (el.id === 'drillCat'){ store.ui.drillCat = el.value; saveStore(); fillDrillList(); }
+  else if (el.dataset.df){ store.ui[el.dataset.df] = el.type === 'checkbox' ? el.checked : el.value; saveStore(); fillDrillList(); }
   else if (el.id === 'sessSel'){ store.activeSession = el.value; saveStore(); renderSessions(); }
   else if (el.dataset.sf === 'teamId' || el.dataset.sf === 'title' || el.dataset.sf === 'date'){ renderSessions(); }
 });
